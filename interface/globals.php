@@ -99,6 +99,7 @@ if (preg_match("/^[^\/]/",$web_root)) {
 //   $webserver_root = "/var/www/openemr";
 //   $web_root =  "/openemr";
 //
+$web_root = "/openemr-demographics";
 
 // This is the directory that contains site-specific data.  Change this
 // only if you have some reason to.
@@ -307,7 +308,6 @@ if ($GLOBALS['concurrent_layout']) {
  $nav_bg_line = ' bgcolor="#94d6e7" ';
 }
 $login_filler_line = ' bgcolor="#f7f0d5" ';
-$login_body_line = ' background="'.$rootdir.'/pic/aquabg.gif" ';
 $logocode = "<img src='$web_root/sites/" . $_SESSION['site_id'] . "/images/login_logo.gif'>";
 $linepic = "$rootdir/pic/repeat_vline9.gif";
 $table_bg = ' bgcolor="#cccccc" ';

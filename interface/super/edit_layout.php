@@ -10,12 +10,142 @@ require_once("../globals.php");
 require_once("$srcdir/acl.inc");
 require_once("$srcdir/log.inc");
 require_once("$srcdir/formdata.inc.php");
+require_once("$srcdir/classes/display/SubItem.php");
 
 $layouts = array(
   'DEM' => xl('Demographics'),
   'HIS' => xl('History'),
   'REF' => xl('Referrals'),
 );
+
+$_db = $GLOBALS['adodb']['db'];
+
+
+//Get Subitems
+//Select all subitems
+$subItemArray = array();
+
+$subItemResults = 	sqlStatement("select distinct `group_name` from `layout_options` ".
+					"where `form_id` = 'SUB' " .
+					"order by `group_name`");
+while($subItemRow = sqlFetchArray($subItemResults)) {
+	$subItemArray["SUB_".$subItemRow['group_name']] = $subItemRow['group_name']; 
+}
+
+
+function isSelectedValue($currentVal, $selectedValue) {
+	if(isset($currentVal) && isset($selectedValue) && $currentVal == $selectedValue) {
+		return " SELECTED ";
+	}
+}
+
+
+function createSelectList($arrayOfValues, $selectedValue = NULL, $attributes = NULL, $selectOnly = FALSE) {
+	//To do: Need to HTML encode.
+	
+	// 	<select>
+	// 	<optgroup label="Swedish Cars">
+	// 	<option value="volvo">Volvo</option>
+	// 	<option value="saab">Saab</option>
+	// 	</optgroup>
+	// 	<optgroup label="German Cars">
+	// 	<option value="mercedes">Mercedes</option>
+	// 	<option value="audi">Audi</option>
+	// 	</optgroup>
+	// 	</select>
+	
+	//Assumes:
+	//Option 1: array("value1"=>"label1","value2"=>"label2");  //<option value="value1">label1</option>
+	//Option 2: array("text1","text2","text3");  //<option value="text1">text1</option>
+	//Option 3: array("optgroup1" => array("value1" => "label1"), "optgroup2" => array("value1" => "label1"));
+	//Option 4: array(array("title"=>"Good Car","value"=>"Volvo","label"="volvo"));
+	//Option 5: array("optgroup1" => array("title"=>"Good Car","value"=>"Volvo","label"="volvo"), "optgroup2" => array("value1" => "label1"));	
+	
+	//add attributes here
+	
+	if($selectOnly) {
+		
+		//Check if assocative.
+		if(is_assoc($arrayOfValues) && array_key_exists('value',$arrayOfValues) && array_key_exists('label',$arrayOfValues) ) {
+			echo "<option ";
+			if(array_key_exists('title',$arrayOfValues)) {
+				echo "title=\"".$arrayOfValues['title']."\" ";
+			}
+			echo "value=\"".$arrayOfValues['value']."\" ".isSelectedValue($arrayOfValues['value'], $selectedValue).">".$arrayOfValues['label']."</option>\n";
+		}
+		elseif(is_assoc($arrayOfValues)) { //Assume it is a 2D array of value/label pairs.
+			foreach($arrayOfValues as $key1 => $value1) {
+				if(is_array($value1)) { 
+					echo "<optgroup label=\"$key1\">\n";
+						createSelectList($value1,$selectedValue, NULL, TRUE);
+					echo "</optgroup>\n";
+				}
+				else {
+					echo "<option value=\"$key1\" ".isSelectedValue($key1, $selectedValue).">$value1</option>\n";
+				}
+			}
+		}
+		else { //Just dealing with 1-D array
+			foreach($arrayOfValues as $singleValue) {
+				echo "<option value=\"$singleValue\" ".isSelectedValue($singleValue, $selectedValue).">$singleValue</option>\n";
+			}
+		}
+	}
+	else {
+		echo "<select ";
+		foreach($attributes as $id => $idValue) {
+			echo "$id=\"$idValue\" ";
+		}
+		echo ">";
+		if(is_assoc($arrayOfValues)) {
+			foreach($arrayOfValues as $key => $value) {
+				if(is_assoc($value))  { //Option 3 or 5: Option Groups
+					//echo 
+					echo "ERROR";
+				}
+				elseif(is_array($value)) {
+					echo "<optgroup label=\"$key\">\n";
+					//Check to see if it is single item.
+						
+					foreach($value as $value1) {
+						createSelectList($value1,$selectedValue, NULL, TRUE);
+					}
+					echo "</optgroup>\n";
+				}
+				else { //array("value"=>"label","value2"="label2");
+					echo "<option value=\"$key\" ".isSelectedValue($key, $selectedValue).">$value</option>\n";
+				}
+			}
+		}
+		else { //Option 2, just a regular array.
+			//Check to see if it is an multiple arrays (eg array(array(1,2,3),array(4,5,6))
+			
+			//Just use the array value as the value and what is displayed.
+			foreach($arrayOfValues as $value) {
+				if(is_assoc($value)) {
+					createSelectList($value,$selectedValue,NULL,TRUE);
+				}
+				elseif(is_array($value)) {
+					createSelectList($value,$selectedValue, NULL,TRUE);
+				}
+				else {
+					echo "<option value=\"$value\"  ".isSelectedValue($value, $selectedValue)." >$value</option>\n";
+				}
+			}	
+		}
+		echo "</select>";
+	}
+}
+
+function is_assoc($array) {
+	if(is_array($array)) {
+		return (bool)count(array_filter(array_keys($array), 'is_string'));
+	}
+	else { 
+		return false;
+	}
+}
+
 if ($GLOBALS['ippf_specific']) {
   $layouts['GCA'] = xl('Abortion Issues');
   $layouts['CON'] = xl('Contraception Issues');
@@ -23,11 +153,15 @@ if ($GLOBALS['ippf_specific']) {
 }
 
 // Include Layout Based Encounter Forms.
+//This will add any layout forms not added above.
 $lres = sqlStatement("SELECT * FROM list_options " .
   "WHERE list_id = 'lbfnames' ORDER BY seq, title");
 while ($lrow = sqlFetchArray($lres)) {
   $layouts[$lrow['option_id']] = $lrow['title'];
 }
+
+//Need to add her the getting of sub-items
+
 
 // array of the data_types of the fields
 $datatypes = array(
@@ -53,6 +187,10 @@ $datatypes = array(
   "32" => xl("Smoking Status"),
   "33" => xl("Race and Ethnicity"),
   "34" => xl("NationNotes"),
+  "35" => xl("Facilities"),
+  "36" => xl('Subitem'),
+  //"37" hidden, not supported yet, but used for tracking ids.		
+  "38" => xl('Action')
 );
 
 function nextGroupOrder($order) {
@@ -70,6 +208,12 @@ if (!$thisauth) die(xl('Not authorized'));
 $layout_id = empty($_REQUEST['layout_id']) ? '' : $_REQUEST['layout_id'];
 
 // Handle the Form actions
+//Actions: save
+//         add field
+//         movefields
+//         delete fields
+//         group - add, move, delete
+
 
 if ($_POST['formaction'] == "save" && $layout_id) {
     // If we are saving, then save.
@@ -101,6 +245,13 @@ if ($_POST['formaction'] == "save" && $layout_id) {
                 "WHERE form_id = '$layout_id' AND field_id = '$field_id'");
         }
     }
+}
+//Action:Adding Sub-Item
+else if($_POST['formaction'] == "addsubitem") {
+	//No longer needed, converted to AJAX.
+	
+	
+
 }
 
 else if ($_POST['formaction'] == "addfield" && $layout_id) {
@@ -326,9 +477,13 @@ else if ($_POST['formaction'] == "renamegroup" && $layout_id) {
 }
 
 // Get the selected form's elements.
-if ($layout_id) {
+if ($layout_id && substr($layout_id,0,4) != "SUB_" ) {
   $res = sqlStatement("SELECT * FROM layout_options WHERE " .
     "form_id = '$layout_id' ORDER BY group_name, seq");
+}
+else if ($layout_id && substr($layout_id,0,4) == "SUB_" ) {
+	$subItem = new SubItem(substr($layout_id,4));
+	$subItem->getDatafromDatabase();
 }
 
 // global counter for field numbers
@@ -522,9 +677,10 @@ function writeFieldLine($linedata) {
 <head>
 <?php html_header_show();?>
 
+
 <!-- supporting javascript code -->
 <script type="text/javascript" src="<?php echo $GLOBALS['webroot'] ?>/library/js/jquery.js"></script>
-
+<script type="text/javascript" src="<?php echo $GLOBALS['webroot'] ?>/library/ajax/objectHelper.js"></script>
 <link rel="stylesheet" href='<?php  echo $css_header ?>' type='text/css'>
 
 <title><?php  xl('Layout Editor','e'); ?></title>
@@ -585,103 +741,206 @@ a, a:visited, a:hover { color:#0000cc; }
 <input type="hidden" name="selectedfields" id="selectedfields" value="">
 <input type="hidden" id="targetgroup" name="targetgroup" value="">
 
-<p><b><?php xl('Edit layout','e'); ?>:</b>&nbsp;
-<select name='layout_id' id='layout_id'>
- <option value=''>-- <?php echo xl('Select') ?> --</option>
-<?php
-foreach ($layouts as $key => $value) {
-  echo " <option value='$key'";
-  if ($key == $layout_id) echo " selected";
-  echo ">$value</option>\n";
-}
-?>
-</select></p>
 
-<?php if ($layout_id) { ?>
-<div style='margin: 0 0 8pt 0;'>
-<input type='button' class='addgroup' id='addgroup' value=<?php xl('Add Group','e','\'','\''); ?>/>
-</div>
-<?php } ?>
+
 
 <?php 
-$prevgroup = "!@#asdf1234"; // an unlikely group name
-$firstgroup = true; // flag indicates it's the first group to be displayed
-while ($row = sqlFetchArray($res)) {
-  if ($row['group_name'] != $prevgroup) {
-    if ($firstgroup == false) { echo "</tbody></table></div>\n"; }
-    echo "<div id='".$row['group_name']."' class='group'>";
-    echo "<div class='text bold layouts_title' style='position:relative; background-color: #eef'>";
-    // echo preg_replace("/^\d+/", "", $row['group_name']);
-    echo substr($row['group_name'], 1);
-    echo "&nbsp; ";
-    // if not english and set to translate layout labels, then show the translation of group name
-    if ($GLOBALS['translate_layout'] && $_SESSION['language_choice'] > 1) {
-      // echo "<span class='translation'>>>&nbsp; " . xl(preg_replace("/^\d+/", "", $row['group_name'])) . "</span>";
-      echo "<span class='translation'>>>&nbsp; " . xl(substr($row['group_name'], 1)) . "</span>";
-      echo "&nbsp; ";	
-    }
-    echo "&nbsp; ";
-    echo " <input type='button' class='addfield' id='addto~".$row['group_name']."' value='" . xl('Add Field') . "'/>";
-    echo "&nbsp; &nbsp; ";
-    echo " <input type='button' class='renamegroup' id='".$row['group_name']."' value='" . xl('Rename Group') . "'/>";
-    echo "&nbsp; &nbsp; ";
-    echo " <input type='button' class='deletegroup' id='".$row['group_name']."' value='" . xl('Delete Group') . "'/>";
-    echo "&nbsp; &nbsp; ";
-    echo " <input type='button' class='movegroup' id='".$row['group_name']."~up' value='" . xl('Move Up') . "'/>";
-    echo "&nbsp; &nbsp; ";
-    echo " <input type='button' class='movegroup' id='".$row['group_name']."~down' value='" . xl('Move Down') . "'/>";
-    echo "</div>";
-    $firstgroup = false;
+
+//TODOCmp: May need to change the layoutid. 
+createSelectList(array(array("value"=>"","label"=>"--".xl('Select')."--"),array("Layouts"=>$layouts),array("SubItems"=>$subItemArray)),$layout_id, array("id" =>"layout_id","name"=>"layout_id" ) );
 ?>
 
-<table>
-<thead>
- <tr class='head'>
-  <th><?php xl('Order','e'); ?></th>
-  <th><?php xl('ID','e'); ?> <span class="help" title=<?php xl('A unique value to identify this field, not visible to the user','e','\'','\''); ?> >(?)</span></th>
-  <th><?php xl('Label','e'); ?> <span class="help" title=<?php xl('The label that appears to the user on the form','e','\'','\''); ?> >(?)</span></th>
-  <?php // if not english and showing layout label translations, then show translation header for title
-  if ($GLOBALS['translate_layout'] && $_SESSION['language_choice'] > 1) {
-   echo "<th>" . xl('Translation')."<span class='help' title='" . xl('The translated label that will appear on the form in current language') . "'> (?)</span></th>";	
-  } ?>		  
-  <th><?php xl('UOR','e'); ?></th>
-  <th><?php xl('Data Type','e'); ?></th>
-  <th><?php xl('Size','e'); ?></th>
-  <th><?php xl('List','e'); ?></th>
-  <th><?php xl('Label Cols','e'); ?></th>
-  <th><?php xl('Data Cols','e'); ?></th>
-  <th><?php xl('Options','e'); ?></th>
-  <th><?php xl('Description','e'); ?></th>
-  <?php // if not english and showing layout label translations, then show translation header for description
-  if ($GLOBALS['translate_layout'] && $_SESSION['language_choice'] > 1) {
-   echo "<th>" . xl('Translation')."<span class='help' title='" . xl('The translation of description in current language')."'> (?)</span></th>";
-  } ?>
- </tr>
-</thead>
-<tbody>
 
-<?php
-    } // end if-group_name
+<?php if ($layout_id && substr($layout_id,0,4) != "SUB_") { ?>
+	<div id="optionGroup" style='margin: 0 0 8pt 0;'>
+		<input type='button' class='addgroup' id='addgroup' value=<?php xl('Add Group','e','\'','\''); ?>/>
+	</div>
+	<div id="layoutDiv">
+	<?php 
+	$prevgroup = "!@#asdf1234"; // an unlikely group name
+	$firstgroup = true; // flag indicates it's the first group to be displayed
+	while ($row = sqlFetchArray($res)) {
+	  if ($row['group_name'] != $prevgroup) {
+	    if ($firstgroup == false) { echo "</tbody></table></div>\n"; }
+	    echo "<div id='".$row['group_name']."' class='group'>";
+	    echo "<div class='text bold layouts_title' style='position:relative; background-color: #eef'>";
+	    // echo preg_replace("/^\d+/", "", $row['group_name']);
+	    echo substr($row['group_name'], 1);
+	    echo "&nbsp; ";
+	    // if not english and set to translate layout labels, then show the translation of group name
+	    if ($GLOBALS['translate_layout'] && $_SESSION['language_choice'] > 1) {
+	      // echo "<span class='translation'>>>&nbsp; " . xl(preg_replace("/^\d+/", "", $row['group_name'])) . "</span>";
+	      echo "<span class='translation'>>>&nbsp; " . xl(substr($row['group_name'], 1)) . "</span>";
+	      echo "&nbsp; ";	
+	    }
+	    echo "&nbsp; ";
+	    echo " <input type='button' class='addfield' id='addto~".$row['group_name']."' value='" . xl('Add Field') . "'/>";
+	    echo "&nbsp; &nbsp; ";
+	    echo " <input type='button' class='renamegroup' id='".$row['group_name']."' value='" . xl('Rename Group') . "'/>";
+	    echo "&nbsp; &nbsp; ";
+	    echo " <input type='button' class='deletegroup' id='".$row['group_name']."' value='" . xl('Delete Group') . "'/>";
+	    echo "&nbsp; &nbsp; ";
+	    echo " <input type='button' class='movegroup' id='".$row['group_name']."~up' value='" . xl('Move Up') . "'/>";
+	    echo "&nbsp; &nbsp; ";
+	    echo " <input type='button' class='movegroup' id='".$row['group_name']."~down' value='" . xl('Move Down') . "'/>";
+	    echo "</div>";
+	    $firstgroup = false;
+	?>
 
-    writeFieldLine($row);
-    $prevgroup = $row['group_name'];
+	<table>
+	<thead>
+	 <tr class='head'>
+	  <th><?php xl('Order','e'); ?></th>
+	  <th><?php xl('Table/Field','e'); ?> <span class="help" title=<?php xl('A unique value to identify this field, not visible to the user','e','\'','\''); ?> >(?)</span></th>
+	  <th><?php xl('Label','e'); ?> <span class="help" title=<?php xl('The label that appears to the user on the form','e','\'','\''); ?> >(?)</span></th>
+	  <?php // if not english and showing layout label translations, then show translation header for title
+	  if ($GLOBALS['translate_layout'] && $_SESSION['language_choice'] > 1) {
+	   echo "<th>" . xl('Translation')."<span class='help' title='" . xl('The translated label that will appear on the form in current language') . "'> (?)</span></th>";	
+	  } ?>		  
+	  <th><?php xl('UOR','e'); ?></th>
+	  <th><?php xl('Data Type','e'); ?></th>
+	  <th><?php xl('Width','e'); ?></th>
+	  <th><?php xl('Height','e'); ?></th> <!--  New? -->
+	  <th><?php xl('List/Subitem','e'); ?></th>
+	  <th><?php xl('Label Cols','e'); ?></th>
+	  <th><?php xl('Data Cols','e'); ?></th>
+	  <th><?php xl('Options','e'); ?></th>
+	  <th><?php xl('Description','e'); ?></th>
+	  <th><?php xl('Mask','e'); ?></th>
+	  <?php // if not english and showing layout label translations, then show translation header for description
+	  if ($GLOBALS['translate_layout'] && $_SESSION['language_choice'] > 1) {
+	   echo "<th>" . xl('Translation')."<span class='help' title='" . xl('The translation of description in current language')."'> (?)</span></th>";
+	  } ?>
+	 </tr>
+	</thead>
+	<tbody>
+	
+	<?php
+	    } // end if-group_name
+	
+	    writeFieldLine($row);
+	    $prevgroup = $row['group_name'];
+	
+	} // end while loop
+	//if this is not set to false then the while loop was never run.
+	if(!$firstgroup) { ?>
+	
+	
+	</tbody>
+	</table>
+	<?php } //Close if group. ?>
 
-} // end while loop
 
-?>
-</tbody>
-</table></div>
+	<span style="font-size:90%">
+	<?php xl('With selected:', 'e');?>
+	<input type='button' name='deletefields' id='deletefields' value='<?php xl('Delete','e'); ?>' style="font-size:90%" disabled="disabled" />
+	<input type='button' name='movefields' id='movefields' value='<?php xl('Move to...','e'); ?>' style="font-size:90%" disabled="disabled" />
+	</span>
+	<p>
+	<input type='button' name='save' id='save' value='<?php xl('Save Changes','e'); ?>' />
+	</p>
+	</div> <!-- layoutDiv  -->
+	</div> <!-- layoutDiv  -->
+		<?php //------------------------------?>
+	<?php }  ?>
+	<div id="optionGroup" style='margin: 0 0 8pt 0;'>
+		<input type='button' class='addsubitem' id='addSubItem' value=<?php xl('Add SubItem','e','\'','\''); ?>/>
+	</div>
+	
+	<div id="subitemdetail" style="border: 1px solid black; padding: 3px; background-color: lightgrey; display: false; visibility: hidden;">
+	<span  class="bold" id="subItemSpan">
+	<?php xl('SubItem','e'); ?>:	<input type="textbox" size="20" maxlength="30" name="newsubitemname" id="newsubitemname"
+	value="">
+	
+	<?php xl('Table','e');?>: <?php createSelectList($_db->MetaTables(), NULL, array("id" => "newsubitemSelectList")); ?>
+	<?php echo " <input type='button' class='subitemaddfield' id='subitemaddfield' value='" . xl('Add Field') . "'/>"; ?>
+	</span> 
+	<br>
+	<table style="border-collapse: collapse; margin-top: 5px;">
+	<thead>
+	 <tr class='head'>
+	  <th><?php xl('Order','e'); ?></th>
+	  <th><?php xl('Field','e'); ?> <span class="help" title=<?php xl('A unique value to identify this field, not visible to the user','e','\'','\''); ?> >(?)</span></th>
+	  <th><?php xl('Label','e'); ?> <span class="help" title=<?php xl('The label that appears to the user on the form','e','\'','\''); ?> >(?)</span></th>
+	  <th><?php xl('UOR','e'); ?></th>
+	  <th><?php xl('Data Type','e'); ?></th>
+	  <th><?php xl('Width','e'); ?></th>
+	  <th><?php xl('Height','e'); ?></th>
+	  <th><?php xl('List/Subitem','e'); ?></th>
+	  <th><?php xl('Label Cols','e'); ?></th>
+	  <th><?php xl('Data Cols','e'); ?></th>
+	  <th><?php xl('Options','e'); ?></th>
+	  <th><?php xl('Description','e'); ?></th>
+	 </tr>
+	</thead>
+	<tbody>
+	<tr class='center'>
+	<td ><input type="textbox" name="snewseq" id="snewseq" value="" size="2" maxlength="3"> </td> <!-- Order -->
+	<td >
+	
+	<!--  <input type="textbox" name="snewid" id="snewid" value="" size="10" maxlength="20">  -->
+	<?php 
+// 		$lclVal00 = $_db->MetaColumns('contact_address');
+// 		$retVal = array();
+// 		foreach($lclVal00 as $column) {
+// 			$retVal[] = $column->name;
+// 		}
+		createSelectList(array(), NULL, array("id"=>"sfieldid")); 
+		
+	
+	?>
+	</td> <!-- Table/Field -->
+	<td><input type="textbox" name="snewtitle" id="snewtitle" value="" size="20" maxlength="63"> </td> <!-- Title/Label -->
+	<td> <!--  UOR -->
+		<select name="snewuor" id="snewuor"> 
+			<option value="0"><?php xl('Unused','e'); ?></option>
+			<option value="1" selected><?php xl('Optional','e'); ?></option>
+			<option value="2"><?php xl('Required','e'); ?></option>
+		</select>
+	</td>
+	<td align='center'> <!-- DataType -->
+		<select name='snewdatatype' id='snewdatatype'>
+			<option value=''></option>
+			<?php
+			global $datatypes;
+			foreach ($datatypes as $key=>$value) {
+			    echo "<option value='$key'>$value</option>";
+			}
+			?>
+		</select>
+	</td>
+	<td><input type="textbox" name="snewlength" id="snewlength" value="" size="1" maxlength="3"> </td> <!-- New Length -->
+	<td><input type="textbox" name="snewHeight" id="snewHeight" value="" size="1" maxlength="3"> </td> <!-- New Height -->
+	<td><input type="textbox" name="snewlistid" id="snewlistid" value="" size="8" maxlength="31" class="listid"> <!-- New List/SubItem -->
+	    <select name='scontextName' id='scontextName' style='display:none'>
+	        <?php
+	        $res = sqlStatement("SELECT * FROM customlists WHERE cl_list_type=2 AND cl_deleted=0");
+	        while($row = sqlFetchArray($res)){
+	          echo "<option value='".htmlspecialchars($row['cl_list_item_long'],ENT_QUOTES)."'>".htmlspecialchars($row['cl_list_item_long'],ENT_QUOTES)."</option>";
+	        }
+	        ?>
+	    </select>
+	</td>
+	<td><input type="textbox" name="snewtitlecols" id="snewtitlecols" value="" size="3" maxlength="3"> </td>
+	<td><input type="textbox" name="snewdatacols" id="snewdatacols" value="" size="3" maxlength="3"> </td>
+	<td><input type="textbox" name="snewedit_options" id="snewedit_options" value="" size="3" maxlength="36">
+	    <input type="hidden"  name="snewdefault" id="snewdefault" value="" /> </td>
+	<td><input type="textbox" name="snewdesc" id="snewdesc" value="" size="30" maxlength="63"> </td>
+	</tr>
+	</tbody>
+	</table>
+	<br>
+	<input type="button" class="savenewsubitem" id="savenewsubitem" value=<?php xl('Save New Subitem','e','\'','\''); ?>>
+	<input type="button" class="cancelnewsubitem" id="cancelnewsubitem" value=<?php xl('Cancel','e','\'','\''); ?>>
+	
+	
+</div> 
 
-<?php if ($layout_id) { ?>
-<span style="font-size:90%">
-<?php xl('With selected:', 'e');?>
-<input type='button' name='deletefields' id='deletefields' value='<?php xl('Delete','e'); ?>' style="font-size:90%" disabled="disabled" />
-<input type='button' name='movefields' id='movefields' value='<?php xl('Move to...','e'); ?>' style="font-size:90%" disabled="disabled" />
-</span>
-<p>
-<input type='button' name='save' id='save' value='<?php xl('Save Changes','e'); ?>' />
-</p>
-<?php } ?>
+
+
+
+
+
 
 </form>
 
@@ -696,72 +955,72 @@ while ($row = sqlFetchArray($res)) {
 
 <!-- template DIV that appears when user chooses to add a new group -->
 <div id="groupdetail" style="border: 1px solid black; padding: 3px; display: none; visibility: hidden; background-color: lightgrey;">
-<span class='bold'>
-<?php xl('Group Name','e'); ?>:	<input type="textbox" size="20" maxlength="30" name="newgroupname" id="newgroupname">
-<br>
-<table style="border-collapse: collapse; margin-top: 5px;">
-<thead>
- <tr class='head'>
-  <th><?php xl('Order','e'); ?></th>
-  <th><?php xl('ID','e'); ?> <span class="help" title=<?php xl('A unique value to identify this field, not visible to the user','e','\'','\''); ?> >(?)</span></th>
-  <th><?php xl('Label','e'); ?> <span class="help" title=<?php xl('The label that appears to the user on the form','e','\'','\''); ?> >(?)</span></th>
-  <th><?php xl('UOR','e'); ?></th>
-  <th><?php xl('Data Type','e'); ?></th>
-  <th><?php xl('Size','e'); ?></th>
-  <th><?php xl('List','e'); ?></th>
-  <th><?php xl('Label Cols','e'); ?></th>
-  <th><?php xl('Data Cols','e'); ?></th>
-  <th><?php xl('Options','e'); ?></th>
-  <th><?php xl('Description','e'); ?></th>
- </tr>
-</thead>
-<tbody>
-<tr class='center'>
-<td ><input type="textbox" name="gnewseq" id="gnewseq" value="" size="2" maxlength="3"> </td>
-<td ><input type="textbox" name="gnewid" id="gnewid" value="" size="10" maxlength="20"> </td>
-<td><input type="textbox" name="gnewtitle" id="gnewtitle" value="" size="20" maxlength="63"> </td>
-<td>
-<select name="gnewuor" id="gnewuor">
-<option value="0"><?php xl('Unused','e'); ?></option>
-<option value="1" selected><?php xl('Optional','e'); ?></option>
-<option value="2"><?php xl('Required','e'); ?></option>
-</select>
-</td>
-<td align='center'>
-<select name='gnewdatatype' id='gnewdatatype'>
-<option value=''></option>
-<?php
-global $datatypes;
-foreach ($datatypes as $key=>$value) {
-    echo "<option value='$key'>$value</option>";
-}
-?>
-</select>
-</td>
-<td><input type="textbox" name="gnewlength" id="gnewlength" value="" size="1" maxlength="3"> </td>
-<td><input type="textbox" name="gnewlistid" id="gnewlistid" value="" size="8" maxlength="31" class="listid">
-    <select name='gcontextName' id='gcontextName' style='display:none'>
-        <?php
-        $res = sqlStatement("SELECT * FROM customlists WHERE cl_list_type=2 AND cl_deleted=0");
-        while($row = sqlFetchArray($res)){
-          echo "<option value='".htmlspecialchars($row['cl_list_item_long'],ENT_QUOTES)."'>".htmlspecialchars($row['cl_list_item_long'],ENT_QUOTES)."</option>";
-        }
-        ?>
-    </select>
-</td>
-<td><input type="textbox" name="gnewtitlecols" id="gnewtitlecols" value="" size="3" maxlength="3"> </td>
-<td><input type="textbox" name="gnewdatacols" id="gnewdatacols" value="" size="3" maxlength="3"> </td>
-<td><input type="textbox" name="gnewedit_options" id="gnewedit_options" value="" size="3" maxlength="36">
-    <input type="hidden"  name="gnewdefault" id="gnewdefault" value="" /> </td>
-<td><input type="textbox" name="gnewdesc" id="gnewdesc" value="" size="30" maxlength="63"> </td>
-</tr>
-</tbody>
-</table>
-<br>
-<input type="button" class="savenewgroup" value=<?php xl('Save New Group','e','\'','\''); ?>>
-<input type="button" class="cancelnewgroup" value=<?php xl('Cancel','e','\'','\''); ?>>
-</span>
-</div>
+	<span class='bold'>
+	<?php xl('Group Name','e'); ?>:	<input type="textbox" size="20" maxlength="30" name="newgroupname" id="newgroupname">
+	<br>
+	<table style="border-collapse: collapse; margin-top: 5px;">
+	<thead>
+	 <tr class='head'>
+	  <th><?php xl('Order','e'); ?></th>
+	  <th><?php xl('ID','e'); ?> <span class="help" title=<?php xl('A unique value to identify this field, not visible to the user','e','\'','\''); ?> >(?)</span></th>
+	  <th><?php xl('Label','e'); ?> <span class="help" title=<?php xl('The label that appears to the user on the form','e','\'','\''); ?> >(?)</span></th>
+	  <th><?php xl('UOR','e'); ?></th>
+	  <th><?php xl('Data Type','e'); ?></th>
+	  <th><?php xl('Size','e'); ?></th>
+	  <th><?php xl('List','e'); ?></th>
+	  <th><?php xl('Label Cols','e'); ?></th>
+	  <th><?php xl('Data Cols','e'); ?></th>
+	  <th><?php xl('Options','e'); ?></th>
+	  <th><?php xl('Description','e'); ?></th>
+	 </tr>
+	</thead>
+	<tbody>
+	<tr class='center'>
+	<td ><input type="textbox" name="gnewseq" id="gnewseq" value="" size="2" maxlength="3"> </td>
+	<td ><input type="textbox" name="gnewid" id="gnewid" value="" size="10" maxlength="20"> </td>
+	<td><input type="textbox" name="gnewtitle" id="gnewtitle" value="" size="20" maxlength="63"> </td>
+	<td>
+	<select name="gnewuor" id="gnewuor">
+	<option value="0"><?php xl('Unused','e'); ?></option>
+	<option value="1" selected><?php xl('Optional','e'); ?></option>
+	<option value="2"><?php xl('Required','e'); ?></option>
+	</select>
+	</td>
+	<td align='center'>
+	<select name='gnewdatatype' id='gnewdatatype'>
+	<option value=''></option>
+	<?php
+	global $datatypes;
+	foreach ($datatypes as $key=>$value) {
+	    echo "<option value='$key'>$value</option>";
+	}
+	?>
+	</select>
+	</td>
+	<td><input type="textbox" name="gnewlength" id="gnewlength" value="" size="1" maxlength="3"> </td>
+	<td><input type="textbox" name="gnewlistid" id="gnewlistid" value="" size="8" maxlength="31" class="listid">
+	    <select name='gcontextName' id='gcontextName' style='display:none'>
+	        <?php
+	        $res = sqlStatement("SELECT * FROM customlists WHERE cl_list_type=2 AND cl_deleted=0");
+	        while($row = sqlFetchArray($res)){
+	          echo "<option value='".htmlspecialchars($row['cl_list_item_long'],ENT_QUOTES)."'>".htmlspecialchars($row['cl_list_item_long'],ENT_QUOTES)."</option>";
+	        }
+	        ?>
+	    </select>
+	</td>
+	<td><input type="textbox" name="gnewtitlecols" id="gnewtitlecols" value="" size="3" maxlength="3"> </td>
+	<td><input type="textbox" name="gnewdatacols" id="gnewdatacols" value="" size="3" maxlength="3"> </td>
+	<td><input type="textbox" name="gnewedit_options" id="gnewedit_options" value="" size="3" maxlength="36">
+	    <input type="hidden"  name="gnewdefault" id="gnewdefault" value="" /> </td>
+	<td><input type="textbox" name="gnewdesc" id="gnewdesc" value="" size="30" maxlength="63"> </td>
+	</tr>
+	</tbody>
+	</table>
+	<br>
+	<input type="button" class="savenewgroup" value=<?php xl('Save New Group','e','\'','\''); ?>>
+	<input type="button" class="cancelnewgroup" value=<?php xl('Cancel','e','\'','\''); ?>>
+	</span>
+	</div> <!-- Close  template DIV that appears when user chooses to add a new group  -->
 
 <!-- template DIV that appears when user chooses to add a new field to a group -->
 <div id="fielddetail" class="fielddetail" style="display: none; visibility: hidden">
@@ -832,20 +1091,132 @@ foreach ($datatypes as $key=>$value) {
 </table>
 </div>
 
-</body>
+<!-- template DIV that appears when user adds a new sublist. -->
+<div id="newSubItemDetail" class="newSubItemDetail" style="display: none; visibility: hidden">
+<input type="hidden" name="subItemDetail" id="subItemDetail" value="">
+<table style="border-collapse: collapse;">
+ <thead>
+  <tr class='head'>
+   <th><?php xl('Order','e'); ?></th>
+   <th><?php xl('ID','e'); ?> <span class="help" title=<?php xl('A unique value to identify this field, not visible to the user','e','\'','\''); ?> >(?)</span></th>
+   <th><?php xl('Label','e'); ?> <span class="help" title=<?php xl('The label that appears to the user on the form','e','\'','\''); ?> >(?)</span></th>
+   <th><?php xl('UOR','e'); ?></th>
+   <th><?php xl('Data Type','e'); ?></th>
+   <th><?php xl('Size','e'); ?></th>
+   <th><?php xl('List','e'); ?></th>
+   <th><?php xl('Label Cols','e'); ?></th>
+   <th><?php xl('Data Cols','e'); ?></th>
+   <th><?php xl('Options','e'); ?></th>
+   <th><?php xl('Description','e'); ?></th>
+  </tr>
+ </thead>
+ <tbody>
+  <tr class='center'>
+   <td ><input type="textbox" name="newseq" id="newseq" value="" size="2" maxlength="3"> </td>
+   <td ><input type="textbox" name="newid" id="newid" value="" size="10" maxlength="20"> </td>
+   <td><input type="textbox" name="newtitle" id="newtitle" value="" size="20" maxlength="63"> </td>
+   <td>
+    <select name="newuor" id="newuor">
+     <option value="0"><?php xl('Unused','e'); ?></option>
+     <option value="1" selected><?php xl('Optional','e'); ?></option>
+     <option value="2"><?php xl('Required','e'); ?></option>
+    </select>
+   </td>
+   <td align='center'>
+    <select name='newdatatype' id='newdatatype'>
+     <option value=''></option>
+<?php
+global $datatypes;
+foreach ($datatypes as $key=>$value) {
+    echo "     <option value='$key'>$value</option>\n";
+}
+?>
+    </select>
+   </td>
+   <td><input type="textbox" name="newlength" id="newlength" value="" size="1" maxlength="3"> </td>
+   <td><input type="textbox" name="newlistid" id="newlistid" value="" size="8" maxlength="31" class="listid">
+       <select name='contextName' id='contextName' style='display:none'>
+        <?php
+        $res = sqlStatement("SELECT * FROM customlists WHERE cl_list_type=2 AND cl_deleted=0");
+        while($row = sqlFetchArray($res)){
+          echo "<option value='".htmlspecialchars($row['cl_list_item_long'],ENT_QUOTES)."'>".htmlspecialchars($row['cl_list_item_long'],ENT_QUOTES)."</option>";
+        }
+        ?>
+       </select>
+   </td>
+   <td><input type="textbox" name="newtitlecols" id="newtitlecols" value="" size="3" maxlength="3"> </td>
+   <td><input type="textbox" name="newdatacols" id="newdatacols" value="" size="3" maxlength="3"> </td>
+   <td><input type="textbox" name="newedit_options" id="newedit_options" value="" size="3" maxlength="36">
+       <input type="hidden"  name="newdefault" id="newdefault" value="" /> </td>
+   <td><input type="textbox" name="newdesc" id="newdesc" value="" size="30" maxlength="63"> </td>
+  </tr>
+  <tr>
+   <td colspan="9">
+    <input type="button" class="savenewfield" value=<?php xl('Save New Field','e','\'','\''); ?>>
+    <input type="button" class="cancelnewfield" value=<?php xl('Cancel','e','\'','\''); ?>>
+   </td>
+  </tr>
+ </tbody>
+</table>
+</div>
+
+</body> 
 
 <script language="javascript">
 
+
+
+//Supporting Functions
+function ajaxGetColumnsByTable(selectListObj, tableName, selectedValue) {
+	$.getJSON("<?php echo $GLOBALS['webroot'] ?>/library/ajax/database.meta.table.php",
+			{ tableName : tableName },
+			function(json) {
+				console.log("about to add options %s",selectedValue);
+				var option1 = $("<option></option>")
+		         .attr("value","start")
+		         .text("start");
+				selectListObj.append(option1);
+				for(var i = 0; i < json.length; i++) {
+					
+					var option = $("<option></option>")
+					         .attr("value",json[i])
+					         .text(json[i]);
+					if(json[i].toLowerCase() == selectedValue.toLowerCase()) {
+							option.attr("selected",true);
+					}
+
+					selectListObj.append(option);
+
+					
+				}
+			});	
+}
 // used when selecting a list-name for a field
 var selectedfield;
 
 // jQuery stuff to make the page a little easier to use
 
 $(document).ready(function(){
+	//SubItems
+	$("#addSubItem").click(function() { AddSubItem(this, true); });
+
+	$("#cancelnewsubitem").click(function() { CancelNewSubItem(this); });
+
+	$("#savenewsubitem").click(function() { SaveNewSubItem(this); });
+	
+	$("#subitemaddfield").click(function() { AddFieldSubItem(this); });
+	$("#subitemrename").click(function() { RenameSubItem(this); });
+	$("#subitemdelete").click(function() { DeleteSubItem(this); });
+		
+
+	//Other items
     $("#save").click(function() { SaveChanges(); });
-    $("#layout_id").change(function() { $('#theform').submit(); });
+    $("#layout_id").change(function() { LayoutChange(this); });
 
     $(".addgroup").click(function() { AddGroup(this); });
+
+
+    
     $(".savenewgroup").click(function() { SaveNewGroup(this); });
     $(".deletegroup").click(function() { DeleteGroup(this); });
     $(".cancelnewgroup").click(function() { CancelNewGroup(this); });
@@ -889,6 +1260,171 @@ $(document).ready(function(){
         $("#theform").submit();
     }
 
+
+    /****************************************************/
+    /************ General Page  functions ***************/
+    /****************************************************/
+    
+    var LayoutChange = function(selectObj) {
+		console.log("value of Select is %s",($(selectObj).val().substr(0,4)));
+        if($(selectObj).val().substr(0,4) == "SUB_") 
+            {
+            	//get json object and populate.
+            	//Hide the other layout.
+            	//$("div#layoutDiv").hide();
+            	$("div#layoutDiv").css("visibility","hidden");
+            	$("div#layoutDiv").css("display", "none");
+
+            	$("div#subitemDiv").css("visibility","visible");
+				$("div#subitemDiv").css("display", "block");
+            	//$("div#optionGroup").siblings("div").eq(0).attr('id',"cat")
+            	//.show();
+        		$.getJSON("<?php echo $GLOBALS['webroot'] ?>/library/ajax/subitem.ajax.php",
+        				{ subItemName : ($(selectObj).val().substring(4)) }, 
+        				function(json) { //do something with JSON
+            				//Need to populate data.
+            				//hmm, how to populate.
+            				AddSubItem($('#addsubitem')); //Unhide element.
+							//First unhide
+							var obj = $('#subitemdetail  #newsubitemname')
+							obj.val(json.name);
+							console.log("Table %s",json.table);
+							$("#newsubitemSelectList").val(json.table);
+
+							
+							var oldSuffix ="";
+							var newSuffix ="";
+								
+							for(var i = 0; i < json.rows.length; i++) {
+								console.log(json.rows[i].sequence);
+								
+								//$("input[name='snewseq']").val(json.rows[i].sequence);	
+								
+								parentItem= $('#subitemdetail table tr.center:last').eq(0);
+								var itemToUpdate = parentItem.clone();
+								
+								inputs = itemToUpdate.children().children(":input");
+								//Values inserted here.
+								
+								var item2 = inputs.filter("#snewseq"+oldSuffix);
+								item2.attr("id", "snewseq"+newSuffix);
+								item2.attr("name", "snewseq"+newSuffix);
+								
+								//inputs.filter("#snewseq"+oldSuffix).val(json.rows[i].sequence);
+								item2.val(json.rows[i].sequence);
+								
+
+								var item3 = inputs.filter("[id^=sfieldid]");
+								console.log("Filter Item found %s with a length of %s", item3.attr("id"),item3["0"].length);
+								item3.attr("id", "sfieldid"+newSuffix);
+								item3.attr("name", "sfieldid"+newSuffix);
+								
+								//item3 = inputs.filter("#sfieldid"+newSuffix);
+								if(item3["0"].length < 2) {
+									ajaxGetColumnsByTable(item3,json.table,json.rows[i].columnName);
+								}
+								item3["0"].value = json.rows[i].columnName;
+								if(item3["0"].value != json.rows[i].columnName) { //failed to set.
+									item3["0"].selectedIndex = 0;//set to the first value.
+								}
+									
+
+								
+								//inputs.filter("#sfieldid")[0].value = json.rows[i].columnName;
+								
+								//console.log("columnName is %s",json.rows[i].columnName);
+								//console.log("Option Length is  %s",inputs.filter("#sfieldid"+suffix)[0].length);
+								inputs.filter("#snewtitle").val(json.rows[i].title);
+								//itemToUpdate.insertAfter('#subitemdetail table tr.center:last');
+								//itemToUpdate.appendTo($('#subitemdetail table tr.center:last').eq(0));
+								parentItem.parent().append(itemToUpdate);
+								console.debug("Field ID: ",$("select#sfieldid_1").val());
+								oldSuffix = "_"+i;
+								newSuffix = "_"+(i+1);
+								if(i == 0)  {
+									//remove first.
+									parentItem.remove();
+									oldSuffix = "";
+									
+									
+								}								
+							}
+        				});
+
+        	}
+        else 
+            {
+        		$("div#subitemDiv").css("visibility","hidden");
+        		$("div#subitemDiv").css("display", "none");
+	
+	        	$("div#layoutDiv").css("visibility","visible");
+	        	$("div#layoutDiv").css("display", "block");
+        		$('#theform').submit();
+        	}
+    };
+    /****************************************************/
+    /************ SubItems functions ********************/
+    /****************************************************/
+    
+    // display the 'new subitem' DIV
+    var AddSubItem = function(btnObj,fetchTable) {
+        // show the field details DIV
+        $('#subitemdetail').css('visibility', 'visible');
+        $('#subitemdetail').css('display', 'block');
+		//Perform Ajax column request.
+        if(fetchTable) {
+        	
+        }
+        $('#subitemdetail  #newsubitemname').focus();
+    };
+
+
+    var CancelNewSubItem = function(btnObj) {
+        // hide the field details DIV
+        $('#subitemdetail').css('visibility', 'hidden');
+        $('#subitemdetail').css('display', 'none');
+        // reset the new group values to a default
+        $('#subitemdetail  #newsubitemname').val("");
+    };
+
+    var SaveNewSubItem = function(btnObj) {
+		//Add validators
+		//Generate JSON of SubItem Data.
+		var subItemResults = createSubItemObject($("div#subitemdetail"));
+		$.post("<?php echo $GLOBALS['webroot'] ?>/library/ajax/subitem.ajax.php", {objData : JSON.stringify(subItemResults)},
+				
+   			function(data) {
+     			alert("Data Loaded: " + data);
+   			});
+    	//$("#formaction").val("addsubitem");
+        //$("#theform").submit();
+    };
+
+
+    var AddFieldSubItem = function(btnObj) {
+    	//Page submit not required.
+    	//Step 1: Find where the field should be added.
+    	//Step 2: copy the template row
+    	//Step 3: Set to visible
+    	//Step 4: append to previous location.
+    	//Step 5: Set Focus.
+    	
+    	parentItem= $(btnObj).parent().parent().find('table tr.center');
+		itemToUpdate = parentItem.eq(0).clone(); //We only want to clone one.
+		itemToUpdate.insertAfter($(btnObj).parent().parent().find('table tr.center:last'))
+        itemToUpdate.focus();
+    	
+    	
+    	
+    };
+	var RenameSubItem = function(btnObj) {
+    	$("#formaction").val("subitemRename");
+        $("#theform").submit();
+	};
+	var DeleteSubItem = function(btnObj) {
+    	$("#formaction").val("subitemDelete");
+        $("#theform").submit();
+	};
     /****************************************************/
     /************ Group functions ***********************/
     /****************************************************/
@@ -1116,9 +1652,15 @@ $(document).ready(function(){
         ResetNewFieldValues();
     };
 
-    // show the popup choice of lists
+    // show the popup choice of lists and subItems
     var ShowLists = function(btnObj) {
-        window.open("./show_lists_popup.php", "lists", "width=300,height=500,scrollbars=yes");
+		//Check the sub item list.
+		//36 => subitem list
+		var location = "./show_lists_popup.php";
+		if($(btnObj).parent().parent().find("select[name$='[data_type]']").val()  === "36") {
+			location += "?mode=subitem";
+		}
+        window.open(location, "lists", "width=300,height=500,scrollbars=yes");
         selectedfield = btnObj;
     };
     
@@ -1185,6 +1727,29 @@ function MoveFields(targetgroup) {
     $("#formaction").val("movefields");
     $("#theform").submit();
 };
+
+/****************************************************/
+/************SubItem Helper Functions ***************/
+/****************************************************/
+function createSubItemObject(targetItem) {
+	var subItem = { name: null, table: null, rows : [] };
+	//$("div#subitemdetail")
+	subItem.name = targetItem.find("span").children().filter("#newsubitemname").val(); //Name
+	subItem.table = targetItem.find("span").children().filter("#newsubitemSelectList").val(); //Table
+	
+	for(var i = 0; i < targetItem.find("table tr.center").length; i++) {
+		var lclRow = { columnName : null, dataType : null, sequence : null, 
+				title : null};
+		var lclVal = targetItem.find("table tr.center").eq(i);
+
+		lclRow.sequence = lclVal.find("[id^=snewseq]").val();
+		lclRow.columnName = lclVal.find("[id^=sfieldid]").val();
+		lclRow.title = lclVal.find("[id^=snewtitle]").val()
+		
+		subItem.rows.push(lclRow);
+		}
+	return subItem;
+}
 
 
 // set the new-field values to a default state
