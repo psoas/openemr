@@ -1,0 +1,1447 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<?php 
+// Copyright (C) 2012 Chris Paulus <coding@cipher-naught.com>
+// Sponsored by David Eschelbacher, MD
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+
+
+$dbMapper = new Application_Model_DbMapper();
+?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Insert title here</title>
+<style>
+
+
+
+
+hr {
+  border: 0;
+  width: 80%;
+  color: #f00;
+  background-color: #f00;
+  height: 5px;
+}
+
+
+#leftContainer {
+  
+  width: 45%; 
+  
+  float:left;
+  border-style:solid;
+  border-color:red;
+  margin-left:10px;
+  margin-right:10px;
+  margin-top:10px;
+  height: 100%;
+  
+}
+
+#fileImport {
+  background: #EBEBEB;
+  border-style:solid;
+  padding:25px 50px;
+  margin-bottom:10px;
+  height:30%;
+  
+}
+
+#options {
+  background: #EBEBEB;
+  border-style:solid;
+  padding:25px 50px;
+  height:40%; 
+}
+
+#upperContainer {
+  margin:auto;
+  width: 800px; 
+  background: #ffffff;
+  border-width:10px;
+  height:400px;
+}
+#rightContainer {
+  float:right;
+  width: 45%; 
+  background: #f33fff;
+  height:100%;
+  margin-top:10px;
+  margin-bottom:10px;
+  margin-left:10px;
+}
+
+#tableInfo {
+  
+  margin:auto;
+  background-color: #EBEBEB;
+  border-style:solid;
+  height:100%;
+  width:100%;
+  
+}
+
+
+
+#columnList {
+  background:white;
+  overflow:auto;
+  height:200px;
+  
+}
+
+#bottomContainer {
+  
+  width: 800px; 
+  margin:auto;
+  
+  border-width:10px;
+  height:600px;
+}
+
+#importPreview { /* this is the bottom */
+  margin-top:10px;
+  margin-bottom:10px;
+  margin-left:10px;
+  margin-right:20px;
+  padding:10px 10px;
+  float:left;
+  width: 770px;
+  height:50%;
+   
+  background: #EBEBEB; 
+  border-style:solid;
+  overflow:auto;
+  /*box-shadow: 10px 10px 5px #888888; can be added*/
+}
+
+#buttonContainer {
+	margin:auto;
+	height: 50px;
+	width: 800px; 
+	border-width:10px;
+	padding:10px 10px;
+}
+
+
+</style>
+</head>
+<body>
+<br/>
+<br/>
+<br/>
+<br/>
+
+	<div id="buttonContainer">
+<span style="float:left;"><button type="button">Load Import Script</button></span>
+<span style="float:right;"><button type="button" name="btnOne">Next</button></span>
+
+</div>
+
+<div id="upperContainer">
+	<div id="leftContainer">
+			<div id="fileImport">
+			File to Import <br/>
+			<input type="file" name="somename" size="11" /> 
+			<input type="submit" name="somebutton" value="Upload"/>
+			</div>
+			<div id="options">
+			Basic Options<br/>
+			<table> 
+			<tr>
+			<td>Field Delimiters </td>
+			<td><select><option value="comma">Comma</option>
+			<option value="Tab">Tab</option>
+			</select></td><td><input type="textbox" size="4"></input><br/></td>
+			</tr>
+			<tr>
+			<td>
+			Text Qualifier </td><td><select><option value="quote">"</option>
+			<option value="Tab">Tab</option>
+			</select></td><td><input type="textbox" size="4"></input></td>
+			</tr>
+			</table>
+			<hr/>
+			Advanced Options<br/>
+			<table>
+			<tr>
+				<td>End of File</td><td><select><option value="None">None</option>
+				<option value="Tab">Tab</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td>Text Encoding</td>
+				<td><select><option value="ASCII">ASCII</option>
+				<option value="Tab">Tab</option></td>
+				</select>
+			</tr>
+			</table>
+			 
+			
+			
+			</div>
+		</div>
+		<div id="rightContainer">
+			<div id="tableInfo">
+			Table Info<br/>
+			<?php 
+			
+			
+			$tableListwithSelect= $dbMapper->Tables;
+			array_unshift($tableListwithSelect,"Select...");
+			echo $this->arrayView()->makeDDList($tableListwithSelect ,$tableListwithSelect);?>
+			<br/>
+			<input type="checkbox"/> Create Temp Table<br/>
+			List of Columns:
+			<div id="columnList" >
+			<ul><li>
+<?php 
+//echo $this->arrayView()->makeLiList(
+		//$dbMapper->table = "address";
+	echo $dbMapper->Stuff;
+?>
+			</li></ul>
+			
+			
+			</div>
+		</div>
+</div>
+<div id="spacer">
+</div>
+</div>
+</div>
+
+<br/>
+
+<hr class="middleBar"/>
+<div id="bottomContainer">
+	<div id="importPreview">
+	Import Previews<br/>
+	Number of Rows to Preview: <select>
+	 <option value="10">10</option>
+	 <option value="40">40</option>
+	 <option value="100">100</option>
+	 </select>
+	<table border="1">
+<tr>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+<td><select>
+<option value="_skipped">skipped</option>
+<option value="id">id</option>
+<option value="title">title</option>
+<option value="language">language</option>
+<option value="financial">financial</option>
+<option value="fname">fname</option>
+<option value="lname">lname</option>
+<option value="mname">mname</option>
+<option value="DOB">DOB</option>
+<option value="street">street</option>
+<option value="postal_code">postal_code</option>
+<option value="city">city</option>
+<option value="state">state</option>
+<option value="country_code">country_code</option>
+<option value="drivers_license">drivers_license</option>
+<option value="ss">ss</option>
+<option value="occupation">occupation</option>
+<option value="phone_home">phone_home</option>
+<option value="phone_biz">phone_biz</option>
+<option value="phone_contact">phone_contact</option>
+<option value="phone_cell">phone_cell</option>
+<option value="pharmacy_id">pharmacy_id</option>
+<option value="status">status</option>
+<option value="contact_relationship">contact_relationship</option>
+<option value="date">date</option>
+<option value="sex">sex</option>
+<option value="referrer">referrer</option>
+<option value="referrerID">referrerID</option>
+<option value="providerID">providerID</option>
+<option value="email">email</option>
+<option value="ethnoracial">ethnoracial</option>
+<option value="race">race</option>
+<option value="ethnicity">ethnicity</option>
+<option value="interpretter">interpretter</option>
+<option value="migrantseasonal">migrantseasonal</option>
+<option value="family_size">family_size</option>
+<option value="monthly_income">monthly_income</option>
+<option value="homeless">homeless</option>
+<option value="financial_review">financial_review</option>
+<option value="pubpid">pubpid</option>
+<option value="pid">pid</option>
+<option value="genericname1">genericname1</option>
+<option value="genericval1">genericval1</option>
+<option value="genericname2">genericname2</option>
+<option value="genericval2">genericval2</option>
+<option value="hipaa_mail">hipaa_mail</option>
+<option value="hipaa_voice">hipaa_voice</option>
+<option value="hipaa_notice">hipaa_notice</option>
+<option value="hipaa_message">hipaa_message</option>
+<option value="hipaa_allowsms">hipaa_allowsms</option>
+<option value="hipaa_allowemail">hipaa_allowemail</option>
+<option value="squad">squad</option>
+<option value="fitness">fitness</option>
+<option value="referral_source">referral_source</option>
+<option value="usertext1">usertext1</option>
+<option value="usertext2">usertext2</option>
+<option value="usertext3">usertext3</option>
+<option value="usertext4">usertext4</option>
+<option value="usertext5">usertext5</option>
+<option value="usertext6">usertext6</option>
+<option value="usertext7">usertext7</option>
+<option value="usertext8">usertext8</option>
+<option value="userlist1">userlist1</option>
+<option value="userlist2">userlist2</option>
+<option value="userlist3">userlist3</option>
+<option value="userlist4">userlist4</option>
+<option value="userlist5">userlist5</option>
+<option value="userlist6">userlist6</option>
+<option value="userlist7">userlist7</option>
+<option value="pricelevel">pricelevel</option>
+<option value="regdate">regdate</option>
+<option value="contrastart">contrastart</option>
+<option value="completed_ad">completed_ad</option>
+<option value="ad_reviewed">ad_reviewed</option>
+<option value="vfc">vfc</option>
+<option value="mothersname">mothersname</option>
+<option value="guardiansname">guardiansname</option>
+<option value="allow_imm_reg_use">allow_imm_reg_use</option>
+<option value="allow_imm_info_share">allow_imm_info_share</option>
+<option value="allow_health_info_ex">allow_health_info_ex</option>
+</select></td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+<tr>
+<td>Chris</td>
+<td>Paulus</td>
+<td>M</td>
+<td>09-11-1900</td>
+<td>123 E St</td>
+<td>Tampa</td>
+<td>FL</td>
+<td>US</td>
+<td>592334444</td>
+<td>Engineer</td>
+<td>8139997777</td>
+<td>8139107777</td>
+</tr>
+
+</table> 
+	
+	</div>
+<br/>
+&lt;?php echo $this-&gt;message ?&gt;
+<?php
+echo $this->message; 
+
+//echo $this->arrayView->getLiList(array("test1","test2"));  
+//echo $this->arrayView->getLiList(array("test1","test2"));
+$helper = $this->arrayView();
+//$helper = $this->view->getHelper('arrayView');
+echo "<ul>";
+echo $helper->makeLiList($dbMapper->tables);
+echo "</ul>";
+echo $this->arrayView()->makeDDList($dbMapper->tables,$dbMapper->tables); 
+
+?>
+</body>
+</html>

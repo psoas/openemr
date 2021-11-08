@@ -1,0 +1,579 @@
+<?php 
+// Copyright (C) 2012 Chris Paulus <coding@cipher-naught.com>
+// Sponsored by David Eschelbacher, MD
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+
+$form = $this->form;
+$this->form->setAction($this->url());
+?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+<link rel="stylesheet" href="<?php echo $GLOBALS['css_header'];?>" type="text/css">
+<script type="text/javascript" src="<?php echo $GLOBALS['webroot'] ?>/library/dialog.js"></script>
+
+<link rel="stylesheet" type="text/css" href="../../../../library/js/fancybox/jquery.fancybox-1.2.6.css" media="screen" />
+<script type="text/javascript" src="../../../../library/textformat.js"></script>
+<script type="text/javascript" src="../../../../library/dialog.js"></script>
+<script type="text/javascript" src="../../../../library/js/jquery.1.3.2.js"></script>
+<script type="text/javascript" src="../../../../library/js/fancybox/jquery.fancybox-1.2.6.js"></script>
+
+<script type="text/javascript" src="../../../../library/js/common.js"></script>
+
+<title>Data Importer</title>
+<script type="text/javascript">
+
+var W3CDOM = (document.createElement && document.getElementsByTagName);
+
+function init() {
+	document.getElementById("dataFile").onchange = 
+		function() {
+		document.getElementById("fakeFileInputBox").value  = document.getElementById("dataFile").value;
+	};
+	if (!W3CDOM) return;
+	
+	processTableChoicesAndMatching();
+	
+}
+
+function processTableChoicesAndMatching() {
+	//Check that values have pid.
+	var columnList = document.getElementById('columnList');
+	var x = columnList.getElementsByTagName('div');
+	var pidFound = false;
+	//
+	for(var i =0;i<x.length;i++) {
+		if(x[i].innerHTML == "pid") {
+			pidFound = true;
+			break;
+		}
+	}
+	if(!pidFound) {
+
+
+		document.getElementById('matchLName').disabled = true;
+		document.getElementById('matchLName').checked = false;
+		document.getElementById('matchFName').disabled = true;
+		document.getElementById('matchFName').checked = false;
+		document.getElementById('matchMName').disabled = true;
+		document.getElementById('matchMName').checked = false;
+		document.getElementById('matchSS').disabled = true;
+		document.getElementById('matchSS').checked = false;
+		document.getElementById('matchDateOfBirth').disabled = true;
+		document.getElementById('matchDateOfBirth').checked = false;
+		document.getElementById('matchSex').disabled = true;
+		document.getElementById('matchSex').checked = false;
+		document.getElementById('matchPatient_Id').disabled = true;
+		document.getElementById('matchPatient_Id').checked = false;
+		document.getElementById('matchAddNew').disabled = true;
+		document.getElementById('matchAddNew').checked = false;
+		document.getElementById('matchSuffix').innerHTML = ('<?php echo xl("You have not selected a table that contains a <i>pid</i> field. Therefore you may not use matching."); ?>');
+	}
+	else {
+		//Enable matching
+		if(document.getElementBydId('tableList').value == "patient_data") {
+			document.getElementById('matchAddNew').disabled = false;
+			
+		}
+		else { //Table is not patient_data so just allow matching.
+			
+		}
+		document.getElementById('matchLName').disabled = false;
+		document.getElementById('matchFName').disabled = false;
+		document.getElementById('matchMName').disabled = false;
+		document.getElementById('matchSS').disabled = false;
+		document.getElementById('matchDateOfBirth').disabled = false;
+		document.getElementById('matchSex').disabled = false;
+		document.getElementById('matchPatient_Id').disabled = false;
+	}
+}
+
+function updateRowOptions(item) {
+	var i = 0;
+	var action = document.getElementById("action_"+i);
+	while(action != null) {
+		setSelectValue(action,item.value);
+		i++;
+		action = document.getElementById("action_"+i);
+	}
+	item.value = "";
+}
+
+function setSelectValue(item, value) {
+	for(var i=0;i<item.options.length; i++) {
+		if(item.options[i].text == value) {
+			item.value = value;
+			break;
+		}
+	}
+}
+
+function fileSelected() {
+	var statusMessage = document.getElementById('statusMessage');
+	statusMessage.innerHTML = "You have selected a file.  Press Apply to process the file or Delete to remove it.";
+	//Enable Apply and Delete Buttons.
+	document.getElementById('Preview').disabled = false;
+	document.getElementById('Delete').disabled = false;
+}
+
+function configurationChanged() {
+	var statusMessage = document.getElementById('statusMessage');
+	statusMessage.innerHTML = "Configuration values changed please select Process File to see changes.";
+}
+
+function tableListChanged() {
+	document.getElementById('hidPostBackAction').value = "TableChange";
+	document.forms[0].submit();
+}
+
+function ConfirmFileDelete(btn)
+{
+
+	var r=confirm("Are you sure you want to delete this file?");
+	if (r==true)
+	{
+		//Set hidden value.
+		//document.forms[0].submit();
+		//btn.value = "true";
+		return true;
+	}
+	else {
+		//btn.value = "false";
+		return false;
+	}
+	
+	
+}
+
+function ConfirmFileProcess(btn)
+{
+
+	var r=confirm("Are you sure you want to process this file?");
+	if (r==true)
+	{
+		//Set hidden value.
+		//document.forms[0].submit();
+		//btn.value = "true";
+		return true;
+	}
+	else {
+		//btn.value = "Delete";
+		return false;
+	}
+	
+	
+}
+
+function SelectElement(valueToSelect,selectList)
+{    
+    var element = document.getElementById(selectList);
+    var isFound = false;
+
+    for (var i=0; i<element.options.length; i++)
+    {
+     if ( element.options[i].value == valueToSelect )
+     {
+    	 element.options[i].selected = true;
+      isFound = true;
+     }
+    }
+    if ( isFound == false )
+    	element.options[0].selected = true;
+}
+
+
+function SetElement(valueToSet,ElementID)
+{
+	var element = document.getElementById(ElementID);
+	if(valueToSet != 0)
+		element.value = valueToSet;
+}
+
+
+</script>
+
+
+<style>
+
+
+
+
+hr {
+  border: 0;
+  width: 80%;
+  height: 5px;
+}
+
+
+#leftContainer {
+  
+  width: 45%; 
+  
+  float:left;
+
+  margin-left:10px;
+  margin-right:10px;
+  margin-top:10px;
+  height: 800px;
+  
+}
+
+#fileImport {
+  background: #EBEBEB;
+
+  padding:25px 50px;
+  margin-bottom:10px;
+  height:120px;
+  
+}
+
+#options {
+  background: #EBEBEB;
+
+  padding:25px 25px;
+  height:30%; 
+}
+
+#matching {
+  background: #EBEBEB;
+
+  padding:25px 25px;
+  margin-top: 25px;
+   
+  
+}
+
+#upperContainer {
+  margin:auto;
+  width: 800px; 
+  
+  height:1000px;
+}
+
+#rightContainer {
+  float:right;
+  width: 45%; 
+  
+  height: 800px;
+  margin-top:10px;
+  margin-bottom:10px;
+  margin-left:10px;
+  overflow:hidden;
+}
+
+#tableInfo {
+  
+  margin:auto;
+  background-color: #EBEBEB;
+  width:70%;
+  height:693px;
+  padding-left: 25px;
+  padding-right: 25px;
+  padding-top: 50px;
+  padding-bottom: 25px;
+}
+
+
+
+#columnList {
+  background:white;
+  overflow:auto;
+  height:550px;
+  
+}
+
+#bottomContainer {
+  
+  width: 780px; 
+  margin:auto;
+  
+  border-width:10px;
+  height:600px;
+  display:table;
+}
+
+#importPreview { /* this is the bottom */
+  
+  margin-bottom:10px;
+  margin-left:40px;
+  margin-right:30px;
+  padding:10px 10px;
+  float:left;
+  width: 754px;
+  height:50%;
+  display:table;
+  background: #EBEBEB; 
+  
+  overflow:visible;
+  
+}
+
+#buttonContainer {
+	margin:auto;
+	height: 50px;
+	width: 800px; 
+	border-width:10px;
+	padding:10px 10px;
+}
+
+
+div.fileinputs {
+  position: relative;
+  
+  
+}
+
+div.fakeFile {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	z-index: 1;
+	width:800px;
+	cursor:pointer;
+	float:left;
+	
+}
+
+input.file {
+	position: relative;
+	text-align: right;
+	right:120px;
+	float:right;
+	-moz-opacity:0 ;
+	filter:alpha(opacity: 0);
+	opacity: 0;
+	z-index: 2;
+}
+form ol {
+		list-style:none;
+		margin:0;
+		padding:0;
+		}
+		form li {
+				padding: 6px;
+				background:#e1e1e1;
+				margin-bottom: 1px;
+				}
+		
+				
+				form label {
+							float: left;
+							width:120px;
+							text-align:7px;
+							color:#0066CC;
+							line-height: 23px;
+						   }
+						   .wide label{
+						   					width:260px;
+						   					}
+
+				form input,select {
+							padding: 4px;
+							font: 13px Georgia, "Times New Roman", Times, serif;
+							border: 1px solid #999999;
+							}
+							form select:focus, input:focus {
+											border:1px solid #666;
+											background:#e3f1f1;
+											}
+							
+span.fullRow {
+	display:block;
+	overflow: hidden;
+	padding: 0 4px 0 6px;
+}
+
+.fullRow select {
+				width:110px;
+				}
+.fullRow #dateSelect {
+				width: 160px;
+}
+</style>
+</head>
+<body  class="body_top">
+
+<form method="<?php echo $form->getMethod() ?>" action="<?php echo $form->getAction()?>" enctype="<?php echo $form->getAttrib('enctype')?>">
+<?php echo $form->getElement('hidTableData')->render(); ?><?php echo $form->getElement('hidPostBackAction')->render(); ?>
+
+Data Importer
+<div id="upperContainer">
+			<div id="fileImport">
+				File Selection <br/>
+				<!--  File processor -->
+
+						<div class="fileinputs">
+							
+							<?php echo $form->getElement('dataFile')->render(); ?>
+							<div class="fakeFile" >
+								<input size="80" disabled="" id="fakeFileInputBox"> 
+								
+								<!-- 			
+								Select <img src="<?php echo $GLOBALS['web_root'];?>/images/button_select_clickOnly.gif" />
+								 -->
+								 
+								 <input type="submit" value="Select" style="width:90px"></input>
+							</div>
+						</div>
+					<br/>
+				<div style="float:left; margin-top:10px">
+					<div style="width:100px;float:left">
+						<?php echo $form->getElement('uploadFile')->render(); ?>
+						<?php echo $form->getElement('Delete')->render(); ?>
+						<div style="height: 4px;"></div>
+						<?php echo $form->getElement('Preview')->render(); ?>
+						
+						<?php echo $form->getElement('processFile')->render(); ?>
+					</div>
+					
+					<div style="float:right;width=600px;">
+					Uploaded Files
+					<?php echo $form->getElement('fileList')->render(); ?>
+					</div>
+				</div>
+				
+				<br/>
+			</div>
+	
+	<div id="leftContainer">
+			
+			<div id="options">
+				 <em>Basic Options</em><br/>
+				<a href="http://www.asciitable.com/"  target="_blank">ASCII Chart 
+			 <img src="../../../../images/new_window_icon.gif" alt="Ascii Chart link"/></a>
+				<ol>
+					<li>
+						<label for="fieldDelimit"><?php echo xl('Field Delimiters'); ?></label>
+						<span class="fullRow"><?php echo $form->getElement('fieldDelimit')->render(); ?><?php echo $form->getElement('fieldDelimitBox')->render(); ?></span>
+					</li>
+					<li>
+						<label for="dateSelect" title="<?php echo xl('Select the format of used for the date field.');?>"><?php echo xl('Date Format'); ?></label>
+						<span class="fullRow"><?php echo $form->getElement('dateSelect')->render(); ?></span>
+					</li>
+					<li>
+						<label for="txtQualifier"><?php echo xl('Text Qualifier');?></label>
+						<span class="fullRow"><?php echo $form->getElement('txtQualifier')->render(); ?><?php echo $form->getElement('txtQualifierBox')->render(); ?></span>
+					</li>
+				</ol>
+				<em>Advanced Options</em>
+				<ol>
+					<li>
+						<?php echo $form->getElement('txtEncoding')->render(); ?><label for="txtEncoding"><?php echo xl('Text Encoding');?></label>
+					</li>
+					<li class="wide">
+						<?php echo $form->getElement('firstRowColumnHeading')->render(); ?><label for="firstRowColumnHeading"><?php echo xl('First Row is Column Headings?');?></label>
+					</li>
+				</ol>
+			</div>
+			
+			<div id="matching">
+            <!-- This is the matching section -->
+            <em>Matching Options</em><br/>
+            <div id="matchSuffix">These options are only enabled when the table contains a <i>pid</i> field.</div>
+            <div style="height:10px;"></div>
+	    	<ol>
+		    	<li><?php echo $form->getElement('matchAddNew')->render(); ?>
+		    	<?php echo $form->getElement('matchMessage')->render();   ?>
+		    	</li>
+	    	</ol>
+            
+            <div style="height:10px;"></div>
+            
+            <ol>
+	            <li>
+	            	<label for="matchLName">Last Name</label><?php echo $form->getElement('matchLName')->render(); ?>
+	            </li> 
+	            
+		    	<li>
+		    		<label for="matchFName">First Name</label><?php echo $form->getElement('matchFName')->render(); ?>
+		    	</li>
+		    	<li>
+		    		<label for="matchMName">Middle Name</label><?php echo $form->getElement('matchMName')->render(); ?>
+		    	</li>
+		    	<li>
+		    		<label for="matchSS">SS</label><?php echo $form->getElement('matchSS')->render(); ?>
+		    	</li>
+		    	<li>
+		    		<label for="matchDateOfBirth">Date of Birth</label><?php echo $form->getElement('matchDateOfBirth')->render(); ?>
+		    	</li>
+		    	<li>
+		    		<label for="matchSex">Sex</label><?php echo $form->getElement('matchSex')->render(); ?>
+		    	</li>
+		    	<li>	
+		    		<?php echo $form->getElement('matchPatient_Id')->render(); ?><label for="matchPatient_Id">Patient_ID</label>
+		   		</li>
+	    	</ol>
+	    	</div>
+		</div>
+		<div id="rightContainer">
+			<div id="tableInfo">
+			<?php echo xl('OpenEMR Tables to import into'); ?>
+			<br/>
+			<?php 
+			
+			echo $form->getElement('tableList')->render(); 
+			?>
+			
+			
+			<br/><br/>
+			<?php echo xl('List of Columns'); ?>:
+			<div id="columnList" >
+			
+<?php 
+	echo $this->ArrayView()->makeAlternatingDiv($form->columnListSet,"#CCCCCC");
+	
+?>
+			
+			
+			
+			</div>
+		</div>
+</div>
+<div id="spacer">
+</div>
+</div>
+<div id="bottomContainer">
+	<div id="importPreview">
+	<em><?php xl('Import Preview'); ?></em><br/>
+	Number of Rows to Preview: <?php echo $form->getElement('rowLimitList')->render(); ?>
+	 <br/>
+	Status Message: <?php echo $form->lblOutput; ?>
+	<div class="statusMessage" id="statusMessage">
+		<?php 
+		if($form->previewTableStatus != "render") {
+			echo $form->previewTableStatusMessage;
+		}
+				
+		?>
+	</div>
+	<?php 
+	
+	if($form->previewTableStatus == "render") {
+        
+		echo $this->TableViewHelper()->generateTable($form->previewTableData,
+                                                     
+                                               $form->columnListSet,
+                                               $form->previewTableColumnRules, //headers
+											   $form->getPatternMatchingArray()
+                                       );
+	}
+	?>
+	
+	</div>
+<br/>
+
+<?php
+//echo $this->dataBaseTables()->tableList();
+?>
+</div>
+</form>
+<script type="text/javascript">
+init();
+</script>
+
+</body>
+</html>
