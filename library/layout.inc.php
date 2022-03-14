@@ -60,6 +60,7 @@ $datatypes = array(
     "46" => xl("List box w/comment"),
     "51" => xl("Patient"),
     "52" => xl("Previous Names"),
+    "53" => xl("Custom Text Box"),
 );
 
 // These are the data types that can reference a list.

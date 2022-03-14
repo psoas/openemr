@@ -62,9 +62,7 @@ $date_init = "";
 $membership_group_number = 0;
 
 // Our base Bootstrap column class, referenced here and in some other modules.
-// Using col-lg allow us to have additional breakpoint at col-md.(992px, 768px)
-// col-md-auto will let BS decide with col-12 always for sm devices.
-$BS_COL_CLASS = 'col-12 col-md-auto col-lg';
+$BS_COL_CLASS = 'col-md';
 
 function get_pharmacies()
 {
@@ -1271,8 +1269,7 @@ function generate_form_field($frow, $currvalue)
         );
         // show the add button if user has access to correct list
         $inputValue = htmlspecialchars(xl('Add'), ENT_QUOTES);
-        $btnSize = ($smallform) ? "btn-sm" : "";
-        $outputAddButton = "<div class='input-group-append'><input type='button' class='btn btn-secondary $btnSize addtolist' id='addtolistid_" . $list_id_esc . "' fieldid='form_" .
+        $outputAddButton = "<div class='input-group-append'><input type='button' class='btn btn-primary addtolist' id='addtolistid_" . $list_id_esc . "' fieldid='form_" .
         $field_id_esc . "' value='$inputValue' $disabled /></div>";
         if (AclExtended::acoExist('lists', $list_id)) {
             // a specific aco exist for this list, so ensure access
@@ -1669,7 +1666,56 @@ function generate_form_field($frow, $currvalue)
         }
         echo "</select>";
         echo "<button type='button' class='btn btn-primary btn-sm' id='type_52_add' onclick='return specialtyFormDialog()'>" . xlt('Add') . "</button></div>";
+    } elseif ($data_type == 53) { // simple text field
+        $fldlength = htmlspecialchars($frow['fld_length'], ENT_QUOTES);
+        $maxlength = $frow['max_length'];
+        $string_maxlength = "";
+        // if max_length is set to zero, then do not set a maxlength
+        if ($maxlength) {
+            $string_maxlength = "maxlength='" . attr($maxlength) . "'";
+        }
+
+        echo "<input type='text'
+            class='form-control{$smallform}'
+            name='form_{$field_id_esc}'
+            id='form_{$field_id_esc}'
+            size='{$fldlength}'
+            {$string_maxlength}
+            {$placeholder}
+            title='{$description}'
+            value='{$currescaped}'";
+        $tmp = $lbfchange;
+        if (isOption($edit_options, 'C') !== false) {
+            $tmp .= "capitalizeMe(this);";
+        } elseif (isOption($edit_options, 'U') !== false) {
+            $tmp .= "this.value = this.value.toUpperCase();";
+        }
+
+        if ($tmp) {
+            echo " onchange='$tmp'";
+        }
+
+        $tmp = htmlspecialchars($GLOBALS['gbl_mask_patient_id'], ENT_QUOTES);
+        // If mask is for use at save time, treat as no mask.
+        if (strpos($tmp, '^') !== false) {
+            $tmp = '';
+        }
+        if ($field_id == 'pubpid' && strlen($tmp) > 0) {
+            echo " onkeyup='maskkeyup(this,\"$tmp\")'";
+            echo " onblur='maskblur(this,\"$tmp\")'";
+        }
+
+        if (isOption($edit_options, '1') !== false && strlen($currescaped) > 0) {
+            echo " readonly";
+        }
+
+        if ($disabled) {
+            echo ' disabled';
+        }
+
+        echo " />";
     }
+
 }
 
 function generate_print_field($frow, $currvalue, $value_allowed = true)
@@ -2356,7 +2402,14 @@ function generate_print_field($frow, $currvalue, $value_allowed = true)
         } else {
             echo '&nbsp;';
         }
+    } elseif ($data_type == 53) { // simple text field
+        if ($currescaped === '') {
+            $currescaped = '&nbsp;';
+        }
+
+        echo $currescaped;
     }
+
 }
 
 /**
@@ -2861,6 +2914,9 @@ function generate_display_field($frow, $currvalue)
             }
             $i++;
         }
+
+    } elseif ($data_type == 53) { // simple text field
+        $s = nl2br(htmlspecialchars($currvalue, ENT_NOQUOTES));
     }
 
     return $s;
@@ -3201,6 +3257,9 @@ function generate_plaintext_field($frow, $currvalue)
         if (!empty($currvalue)) {
             $s .= getPatientDescription($currvalue);
         }
+
+    } elseif ($data_type == 53) { // simple or long text field
+        $s = $currvalue;
     }
 
     return $s;
