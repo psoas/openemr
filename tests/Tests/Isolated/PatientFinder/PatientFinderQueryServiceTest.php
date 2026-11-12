@@ -24,6 +24,7 @@ use OpenEMR\Events\PatientFinder\PatientFinderColumnRegistrationEvent;
 use OpenEMR\Events\PatientFinder\PatientFinderRowEnrichEvent;
 use OpenEMR\Services\PatientFinder\PatientFinderColumn;
 use OpenEMR\Services\PatientFinder\PatientFinderColumnRegistry;
+use OpenEMR\Services\PatientFinder\PatientFinderColumnRegistryFactory;
 use OpenEMR\Services\PatientFinder\PatientFinderQueryBuilder;
 use OpenEMR\Services\PatientFinder\PatientFinderQueryService;
 use OpenEMR\Services\PatientFinder\PatientFinderRequest;
@@ -46,6 +47,22 @@ class PatientFinderQueryServiceTest extends TestCase
             $dispatcher->addListener($eventName, $listener);
         }
         return $dispatcher;
+    }
+
+    /**
+     * A registry factory over the given fetcher that treats every column id as a real patient_data column.
+     *
+     * @param callable(string, array<int, string|int>): list<array<mixed>> $fetch
+     */
+    private function registryFactory(
+        EventDispatcherInterface $dispatcher,
+        callable $fetch
+    ): PatientFinderColumnRegistryFactory {
+        return new PatientFinderColumnRegistryFactory(
+            $dispatcher,
+            $fetch,
+            columnExists: static fn(string $key): bool => true
+        );
     }
 
     public function testResolveActiveColumnsFollowsClientOrderAndDropsUnknown(): void
@@ -143,7 +160,12 @@ class PatientFinderQueryServiceTest extends TestCase
                 },
         ]);
 
-        $service = new PatientFinderQueryService($dispatcher, null, $fetch);
+        $service = new PatientFinderQueryService(
+            $dispatcher,
+            null,
+            $fetch,
+            registryFactory: $this->registryFactory($dispatcher, $fetch)
+        );
         $registry = $service->buildColumnRegistry();
 
         $this->assertSame(['name', 'ihi'], $registry->keys());
@@ -190,7 +212,8 @@ class PatientFinderQueryServiceTest extends TestCase
             $fetch,
             $sqlQuery,
             static fn(mixed $v): string => PatientFinderValue::string($v),
-            static fn(array $info, mixed $v): string => PatientFinderValue::string($v)
+            static fn(array $info, mixed $v): string => PatientFinderValue::string($v),
+            $this->registryFactory($dispatcher, $fetch)
         );
 
         $out = $service->handle([
@@ -230,12 +253,14 @@ class PatientFinderQueryServiceTest extends TestCase
             static fn(string $col, array $tables): string => '`' . $col . '`',
             static fn(string $term): string => $term
         );
+        $dispatcher = $this->dispatcher();
         $service = new PatientFinderQueryService(
-            $this->dispatcher(),
+            $dispatcher,
             $builder,
             $fetch,
             static fn(string $sql, array $binds): array => ['count' => 0],
-            static fn(mixed $v): string => PatientFinderValue::string($v)
+            static fn(mixed $v): string => PatientFinderValue::string($v),
+            registryFactory: $this->registryFactory($dispatcher, $fetch)
         );
         $service->handle(['sColumns' => 'name,DOB', 'sSearch' => '021', 'searchMode' => $mode]);
         return $dataSql;

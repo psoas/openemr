@@ -187,7 +187,8 @@ class PatientFinderBuiltInColumnsTest extends TestCase
             new EventDispatcher(),
             $fetch,
             $listMap,
-            new PatientFinderBuiltInColumns()
+            new PatientFinderBuiltInColumns(),
+            columnExists: static fn(string $key): bool => true
         ))->create();
 
         $this->assertSame(['phone_home', 'city_state'], $registry->keys());
@@ -228,14 +229,16 @@ class PatientFinderBuiltInColumnsTest extends TestCase
             $fetch,
             $listMap,
             new PatientFinderBuiltInColumns(),
-            $deny
+            $deny,
+            static fn(string $key): bool => true
         ))->create();
         $allowed = (new PatientFinderColumnRegistryFactory(
             new EventDispatcher(),
             $fetch,
             $listMap,
             new PatientFinderBuiltInColumns(),
-            static fn(string $section, string $value): bool => true
+            static fn(string $section, string $value): bool => true,
+            static fn(string $key): bool => true
         ))->create();
 
         $this->assertSame(['age'], $denied->keys());

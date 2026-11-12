@@ -12,7 +12,9 @@
  * column's configured initial sort direction (its `toggle_setting_1`, resolved
  * through the `Sort_Direction` list). An entry whose option id is one of
  * {@see PatientFinderBuiltInColumns::keys()} is seeded as that combined column
- * rather than as a `patient_data` field. An entry's notes hold its display width
+ * rather than as a `patient_data` field. Any other entry must name a real
+ * `patient_data` column (or the patient-name column); one that does not, such as
+ * a stale or misspelled id or `*`, is skipped rather than queried. An entry's notes hold its display width
  * (see {@see PatientFinderColumn::withWidth()}). It then dispatches
  * {@see PatientFinderColumnRegistrationEvent} so modules can add, remove or
  * reorder columns.
@@ -37,6 +39,7 @@ namespace OpenEMR\Services\PatientFinder;
 
 use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Common\Database\QueryUtils;
+use OpenEMR\Common\Database\SqlQueryException;
 use OpenEMR\Core\OEGlobalsBag;
 use OpenEMR\Events\PatientFinder\PatientFinderColumnRegistrationEvent;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -52,6 +55,9 @@ final class PatientFinderColumnRegistryFactory
     /** @var callable(string, string): bool */
     private $aclCheck;
 
+    /** @var callable(string): bool */
+    private $columnExists;
+
     /** @var array<array-key, mixed>|null Cached Sort_Direction map. */
     private ?array $sortDirectionMap = null;
 
@@ -63,18 +69,36 @@ final class PatientFinderColumnRegistryFactory
      *        The combined columns (defaults to one using the site's date and time formats).
      * @param callable(string, string): bool|null $aclCheck
      *        Whether the current user has an ACL section and value (defaults to AclMain::aclCheckCore()).
+     * @param callable(string): bool|null $columnExists
+     *        Whether a column id names a real patient_data column (defaults to the
+     *        escape_sql_column_name() whitelist).
      */
     public function __construct(
         private readonly EventDispatcherInterface $dispatcher,
         ?callable $fetchRecords = null,
         ?callable $listMapResolver = null,
         private ?PatientFinderBuiltInColumns $builtInColumns = null,
-        ?callable $aclCheck = null
+        ?callable $aclCheck = null,
+        ?callable $columnExists = null
     ) {
         $this->fetchRecords = $fetchRecords ?? QueryUtils::fetchRecords(...);
         $this->listMapResolver = $listMapResolver;
         $this->aclCheck = $aclCheck ?? static fn(string $section, string $value): bool
             => AclMain::aclCheckCore($section, $value);
+        $this->columnExists = $columnExists ?? self::patientDataColumnExists(...);
+    }
+
+    /**
+     * Whether a column id names a real patient_data column, per the same whitelist the query builder escapes with.
+     */
+    private static function patientDataColumnExists(string $key): bool
+    {
+        try {
+            escape_sql_column_name($key, ['patient_data'], false, true);
+            return true;
+        } catch (SqlQueryException) {
+            return false;
+        }
     }
 
     /**
@@ -105,8 +129,11 @@ final class PatientFinderColumnRegistryFactory
                 if ($column === null) {
                     continue;
                 }
-            } else {
+            } elseif ($this->isTableColumn($key)) {
                 $column = PatientFinderColumn::fromTable($key, $title, defaultSortDir: $sortDir);
+            } else {
+                // A stale or misspelled id, or '*': querying it would end the request.
+                continue;
             }
             $registry->add($column->withWidth(PatientFinderValue::string($row['notes'] ?? null)));
         }
@@ -117,6 +144,17 @@ final class PatientFinderColumnRegistryFactory
         );
 
         return $registry;
+    }
+
+    /**
+     * Whether a list entry that is not a combined column can be read from patient_data.
+     */
+    private function isTableColumn(string $key): bool
+    {
+        if ($key === PatientFinderQueryBuilder::NAME_KEY) {
+            return true;
+        }
+        return $key !== '*' && ($this->columnExists)($key);
     }
 
     /**

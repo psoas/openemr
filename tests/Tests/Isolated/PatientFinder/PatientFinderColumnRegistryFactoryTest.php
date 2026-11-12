@@ -39,6 +39,17 @@ class PatientFinderColumnRegistryFactoryTest extends TestCase
         return $dispatcher;
     }
 
+    /**
+     * A column check that knows only the given patient_data columns.
+     *
+     * @param list<string> $columns
+     * @return callable(string): bool
+     */
+    private static function columns(array $columns = ['DOB', 'sex', 'fname']): callable
+    {
+        return static fn(string $key): bool => in_array($key, $columns, true);
+    }
+
     public function testSeedsColumnsWithSortDirectionAndRunsEvent(): void
     {
         $fetch = static fn(string $sql, array $binds): array => in_array('ptlistcols', $binds, true)
@@ -59,7 +70,7 @@ class PatientFinderColumnRegistryFactoryTest extends TestCase
                 ),
         ]);
 
-        $registry = (new PatientFinderColumnRegistryFactory($dispatcher, $fetch, $listMap))->create();
+        $registry = (new PatientFinderColumnRegistryFactory($dispatcher, $fetch, $listMap, columnExists: self::columns()))->create();
 
         $this->assertSame(['name', 'DOB', 'ihi'], $registry->keys());
         $this->assertSame('asc', $registry->get('name')?->defaultSortDir);
@@ -77,7 +88,7 @@ class PatientFinderColumnRegistryFactoryTest extends TestCase
             throw new \RuntimeException('should not resolve the list for a blank toggle');
         };
 
-        $registry = (new PatientFinderColumnRegistryFactory($this->dispatcher(), $fetch, $listMap))->create();
+        $registry = (new PatientFinderColumnRegistryFactory($this->dispatcher(), $fetch, $listMap, columnExists: self::columns()))->create();
 
         $this->assertSame('asc', $registry->get('sex')?->defaultSortDir);
     }
@@ -94,10 +105,33 @@ class PatientFinderColumnRegistryFactoryTest extends TestCase
                     $seen[] = $e->getColumnList();
                 },
         ]);
-        $factory = new PatientFinderColumnRegistryFactory($dispatcher, $fetch);
+        $factory = new PatientFinderColumnRegistryFactory($dispatcher, $fetch, columnExists: self::columns());
 
         $this->assertSame(['fname'], $factory->create(PatientFinderColumnList::Recent)->keys());
         $this->assertSame(['DOB'], $factory->create()->keys());
         $this->assertSame([PatientFinderColumnList::Recent, PatientFinderColumnList::PatientList], $seen);
+    }
+
+    /**
+     * A stale or misspelled id, or '*', is skipped rather than queried: escaping it would end the request.
+     */
+    public function testSkipsIdsThatAreNotPatientDataColumns(): void
+    {
+        $fetch = static fn(string $sql, array $binds): array => [
+            ['option_id' => 'name', 'title' => 'Name', 'toggle_setting_1' => ''],
+            ['option_id' => '*', 'title' => 'All', 'toggle_setting_1' => ''],
+            ['option_id' => 'fnmae', 'title' => 'Typo', 'toggle_setting_1' => ''],
+            ['option_id' => 'DOB', 'title' => 'DOB', 'toggle_setting_1' => ''],
+        ];
+        $asked = [];
+        $columnExists = static function (string $key) use (&$asked): bool {
+            $asked[] = $key;
+            return $key === 'DOB';
+        };
+
+        $factory = new PatientFinderColumnRegistryFactory($this->dispatcher(), $fetch, columnExists: $columnExists);
+
+        $this->assertSame(['name', 'DOB'], $factory->create(PatientFinderColumnList::Recent)->keys());
+        $this->assertSame(['fnmae', 'DOB'], $asked, "neither the name column nor '*' is looked up");
     }
 }
