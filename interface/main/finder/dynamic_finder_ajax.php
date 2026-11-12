@@ -10,6 +10,8 @@
  * dispatches the module extension events (column registration, custom filter,
  * row enrichment). The wire contract (DataTables request params and the
  * sEcho/iTotalRecords/iTotalDisplayRecords/aaData response) is unchanged.
+ * With mode=detail it instead returns the Patient Finder Detail layout for one
+ * patient, shown when a finder row is expanded.
  *
  * Sponsored by David Eschelbacher, MD
  *
@@ -23,6 +25,8 @@
  * @copyright Copyright (c) 2018 Brady Miller <brady.g.miller@gmail.com>
  * @copyright Copyright (c) 2019, 2025 Jerry Padgett <sjpadgett@gmail.com>
  * @copyright Copyright (c) 2026 Open Plan IT Ltd
+ * @author    David Eschelbacher <psoas@tampabay.rr.com>
+ * @copyright Copyright (c) 2022 David Eschelbacher <psoas@tampabay.rr.com>
  * @license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
  */
 
@@ -32,6 +36,7 @@ require_once(\OpenEMR\Core\OEGlobalsBag::getInstance()->getSrcDir() . "/options.
 use OpenEMR\Common\Acl\AccessDeniedHelper;
 use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Core\OEGlobalsBag;
+use OpenEMR\Services\PatientFinder\PatientFinderDetailService;
 use OpenEMR\Services\PatientFinder\PatientFinderQueryService;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -47,8 +52,32 @@ if (!AclMain::aclCheckCore('patients', 'demo')) {
 //  1. cookie_samesite in OpenEMR is set to 'Strict', which is an effective security measure to stop csrf vulnerabilities.
 //  2. Additionally, in this script there are no state changes, thus it is not even sensitive to csrf vulnerabilities.
 
-$service = new PatientFinderQueryService(OEGlobalsBag::getInstance()->getKernel()->getEventDispatcher());
-$out = $service->handle(Request::createFromGlobals()->query->all());
+$query = Request::createFromGlobals()->query;
+$dispatcher = OEGlobalsBag::getInstance()->getKernel()->getEventDispatcher();
+
+// mode=detail: the details shown when a row is expanded, the Patient Finder Detail layout
+// rendered for one patient, as JSON {"html": "..."}; 404 when the patient does not exist or
+// the finder hides them.
+if ($query->getString('mode') === 'detail') {
+    header('Content-Type: application/json');
+    // getInt() would throw on a value that is not a number; anything that is not a positive
+    // integer is simply not found.
+    $rawPid = $query->getString('pid');
+    $pid = ctype_digit($rawPid) ? intval($rawPid) : 0;
+    $values = (new PatientFinderDetailService($dispatcher))->values($pid);
+    if ($values === null) {
+        http_response_code(404);
+        echo json_encode(['html' => '']);
+        exit;
+    }
+    ob_start();
+    display_layout_tabs_data(PatientFinderDetailService::LAYOUT_ID, $values);
+    echo json_encode(['html' => (string) ob_get_clean()], 15);
+    exit;
+}
+
+$service = new PatientFinderQueryService($dispatcher);
+$out = $service->handle($query->all());
 
 // Encoding with options for escaping a special chars - JSON_HEX_TAG (<)(>), JSON_HEX_AMP(&), JSON_HEX_APOS('), JSON_HEX_QUOT(").
 echo json_encode($out, 15);
