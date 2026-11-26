@@ -1035,6 +1035,19 @@
                         ]
                     },
                     {
+                        "label": "Dashboard Templates",
+                        "menu_id": "adm0",
+                        "target": "adm",
+                        "url": "/interface/super/user_templates.php",
+                        "children": [],
+                        "requirement": 0,
+                        "global_req": "enable_user_templates",
+                        "acl_req": [
+                            "admin",
+                            "super"
+                        ]
+                    },
+                    {
                         "label": "Lists",
                         "menu_id": "adm0",
                         "target": "adm",

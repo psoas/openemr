@@ -64,6 +64,7 @@ use OpenEMR\Patient\Cards\CareTeamViewCard;
 use OpenEMR\Patient\Cards\DemographicsViewCard;
 use OpenEMR\Patient\Cards\InsuranceViewCard;
 use OpenEMR\Patient\Cards\PortalCard;
+use OpenEMR\Patient\Cards\TemplateCardFactory;
 use OpenEMR\Patient\Cards\TreatmentPreferenceViewCard;
 use OpenEMR\Reminder\BirthdayReminder;
 use OpenEMR\Services\AllergyIntoleranceService;
@@ -1374,7 +1375,11 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
                     endif;
 
                     $sectionRenderEvents = $ed->dispatch(new SectionEvent('primary'), SectionEvent::EVENT_HANDLE);
-                    $sectionRenderEvents->addCard(new DemographicsViewCard($result, $result2, ['dispatcher' => $ed]));
+                    $sectionRenderEvents->addCard(TemplateCardFactory::forSlot(
+                        'demographics',
+                        $pid,
+                        new DemographicsViewCard($result, $result2, ['dispatcher' => $ed])
+                    ));
 
                     if (!OEGlobalsBag::getInstance()->getBoolean('hide_billing_widget')) {
                         $sectionRenderEvents->addCard(new BillingViewCard($pid, $insco_name, $result['billing_note'], $result3, ['dispatcher' => $ed]));

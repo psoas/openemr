@@ -3,7 +3,7 @@
 --
 -- Keep v_database in sync with $v_database in version.php.
 -- CI will fail if they don't match.
--- v_database: 583
+-- v_database: 584
 --
 
 --
@@ -15841,3 +15841,23 @@ CREATE TABLE `migrations` (
     `execution_duration_ms` int DEFAULT NULL,
     PRIMARY KEY (`version`)
 ) ENGINE=InnoDB;
+
+--
+-- Table structure for table `user_templates`
+--
+
+DROP TABLE IF EXISTS `user_templates`;
+CREATE TABLE `user_templates` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `scope` varchar(63) NOT NULL COMMENT 'where the template is used, e.g. dashboard_card',
+  `slot` varchar(63) NOT NULL COMMENT 'which card or page it replaces, e.g. demographics',
+  `status` varchar(15) NOT NULL COMMENT 'TemplateStatus: draft, published or retired',
+  `source` mediumtext NOT NULL COMMENT 'the Twig source, rendered only in the sandbox',
+  `used_fields` text NOT NULL COMMENT 'JSON list of dataset fields the template reads, from the upload check',
+  `dataset_version` int(11) NOT NULL COMMENT 'version of the dataset the template was checked against',
+  `created_by` bigint(20) NOT NULL COMMENT 'users.id',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `scope_slot_status` (`scope`, `slot`, `status`)
+) ENGINE=InnoDB COMMENT='Admin-uploaded Twig templates; each save is a new row';
+

@@ -631,3 +631,20 @@ CREATE TABLE `era_auto_post_claim` (
 #IfMissingColumn facility mammography_cert_number
 ALTER TABLE `facility` ADD `mammography_cert_number` varchar(30) DEFAULT NULL COMMENT 'FDA (MQSA) mammography certification number, sent as REF*EW on the 837P';
 #EndIf
+
+-- v_database 584: admin-uploaded Twig templates for dashboard cards (experimental).
+#IfNotTable user_templates
+CREATE TABLE `user_templates` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `scope` varchar(63) NOT NULL COMMENT 'where the template is used, e.g. dashboard_card',
+  `slot` varchar(63) NOT NULL COMMENT 'which card or page it replaces, e.g. demographics',
+  `status` varchar(15) NOT NULL COMMENT 'TemplateStatus: draft, published or retired',
+  `source` mediumtext NOT NULL COMMENT 'the Twig source, rendered only in the sandbox',
+  `used_fields` text NOT NULL COMMENT 'JSON list of dataset fields the template reads, from the upload check',
+  `dataset_version` int(11) NOT NULL COMMENT 'version of the dataset the template was checked against',
+  `created_by` bigint(20) NOT NULL COMMENT 'users.id',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `scope_slot_status` (`scope`, `slot`, `status`)
+) ENGINE=InnoDB COMMENT='Admin-uploaded Twig templates; each save is a new row';
+#EndIf

@@ -1,0 +1,123 @@
+{#
+  Dashboard template manager. Rendered by
+  OpenEMR\Controllers\Interface\Super\UserTemplateManagerController.
+
+  Left: the template editor with Check, Save draft, Publish and Use the core
+  card. Right: the preview (rendered in the sandbox with made-up data, shown
+  in a frame that allows no scripts) and the fields the template may use.
+  Autoescape is off in OpenEMR, so every value goes through |text, |attr or
+  a translation filter.
+
+  @package   OpenEMR
+  @link      https://www.open-emr.org
+  @author    David Eschelbacher
+  @copyright Copyright (c) 2026 David Eschelbacher
+  @license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
+#}
+<html>
+<head>
+    <title>{{ 'Dashboard Templates'|xlt }}</title>
+    {{ setupHeader([], false) }}
+</head>
+<body class="body_top">
+<div class="container-fluid mt-3">
+    <h2 class="h4">{{ 'Dashboard Templates'|xlt }} <span class="badge badge-info align-middle">{{ 'Experimental'|xlt }}</span></h2>
+    <p class="text-muted mb-2">
+        {{ 'Replace the Demographics card on the patient dashboard with your own layout. Templates run in a sandbox: they can only show the fields listed on the right, and cannot run code, read files or query the database.'|xlt }}
+    </p>
+
+    {% if not featureEnabled %}
+        <div class="alert alert-warning">{{ 'Published templates are not shown yet: turn on "Enable Admin-Uploaded Dashboard Templates" in Administration > Globals > Appearance first.'|xlt }}</div>
+    {% endif %}
+    {% if message %}
+        <div class="alert alert-info">{{ message|text }}</div>
+    {% endif %}
+
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <strong>{{ 'Demographics card'|xlt }}:</strong>
+            {% if published %}
+                <span class="badge badge-primary">{{ 'Uploaded template'|xlt }}</span>
+                {{ 'published version'|xlt }} #{{ published.id|text }}, {{ 'saved by'|xlt }} {{ published.by|text }} {{ published.at|text }}
+            {% else %}
+                <span class="badge badge-secondary">{{ 'Core card'|xlt }}</span>
+                {{ 'OpenEMR\'s built-in Demographics card is in use.'|xlt }}
+            {% endif %}
+            {% if draft %}
+                <span class="ml-3 badge badge-warning">{{ 'Unpublished draft'|xlt }}</span>
+                #{{ draft.id|text }}, {{ draft.by|text }} {{ draft.at|text }}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6 mb-3">
+            <form method="post" id="template-form">
+                <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
+                <input type="hidden" name="draft_id" value="{{ draft ? draft.id|attr : '' }}">
+                <label for="source" class="font-weight-bold">{{ 'Template'|xlt }}</label>
+                <textarea id="source" name="source" class="form-control text-monospace small" rows="28" spellcheck="false">{{ source|text }}</textarea>
+
+                <div class="mt-2">
+                    <button type="submit" name="action" value="check" class="btn btn-secondary">{{ 'Check and preview'|xlt }}</button>
+                    <button type="submit" name="action" value="save_draft" class="btn btn-primary">{{ 'Save draft'|xlt }}</button>
+                    {% if draft %}
+                        <button type="submit" name="action" value="publish" class="btn btn-success">{{ 'Publish draft'|xlt }} #{{ draft.id|text }}</button>
+                    {% endif %}
+                    {% if published %}
+                        <button type="submit" name="action" value="revert" class="btn btn-outline-danger float-right">{{ 'Use the core card'|xlt }}</button>
+                    {% endif %}
+                </div>
+            </form>
+
+            <div class="mt-3">
+                {% if issues is empty %}
+                    <div class="alert alert-success py-2 mb-0">
+                        {{ 'Check passed.'|xlt }}
+                        {% if usedFields is not empty %}
+                            {{ 'Fields used'|xlt }}: <code>{{ usedFields|join(', ')|text }}</code>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-danger py-2 mb-0">
+                        <strong>{{ 'Check found problems'|xlt }}:</strong>
+                        <ul class="mb-0">
+                            {% for issue in issues %}
+                                <li>{{ 'Line'|xlt }} {{ issue.line|text }}: {{ issue.message|text }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-3">
+            <div class="font-weight-bold mb-1">{{ 'Preview with made-up data'|xlt }}</div>
+            {% if previewDocument %}
+                <div class="embed-responsive embed-responsive-4by3 border rounded bg-white">
+                    {# allow-same-origin only so the theme stylesheet loads; without allow-scripts no script can run, and the page's own CSP blocks scripts too. #}
+                    <iframe sandbox="allow-same-origin" title="{{ 'Template preview'|xla }}" class="embed-responsive-item" srcdoc="{{ previewDocument|attr }}"></iframe>
+                </div>
+            {% else %}
+                <div class="border rounded p-3 text-muted">{{ 'Fix the problems on the left to see a preview.'|xlt }}</div>
+            {% endif %}
+
+            <div class="font-weight-bold mt-3 mb-1">{{ 'Fields a template may use'|xlt }} <span class="text-muted font-weight-normal">({{ 'dataset version'|xlt }} {{ datasetVersion|text }})</span></div>
+            <table class="table table-sm table-striped small mb-0">
+                <thead><tr><th>{{ 'Field'|xlt }}</th><th>{{ 'Meaning'|xlt }}</th><th>{{ 'Type'|xlt }}</th><th>{{ 'Example'|xlt }}</th></tr></thead>
+                <tbody>
+                {% for field in fields %}
+                    <tr>
+                        <td><code>{{ field.name|text }}</code></td>
+                        <td>{{ field.label|text }}</td>
+                        <td>{{ field.type|text }}</td>
+                        <td>{{ field.sample|text }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>
