@@ -2,8 +2,9 @@
   Dashboard template manager. Rendered by
   OpenEMR\Controllers\Interface\Super\UserTemplateManagerController.
 
-  Left: the template editor with Check, Save draft, Publish and Use the core
-  card. Right: the preview (rendered in the sandbox with made-up data, shown
+  Top: the saved templates for the card, which one is active, Make active
+  and Use the core card. Left: the editor for the selected template with
+  Check, Save draft, Publish and Save as new template. Right: the preview (rendered in the sandbox with made-up data, shown
   in a frame that allows no scripts) and the fields the template may use.
   Autoescape is off in OpenEMR, so every value goes through |text, |attr or
   a translation filter.
@@ -34,20 +35,58 @@
     {% endif %}
 
     <div class="card mb-3">
-        <div class="card-body py-2">
-            <strong>{{ 'Demographics card'|xlt }}:</strong>
-            {% if published %}
-                <span class="badge badge-primary">{{ 'Uploaded template'|xlt }}</span>
-                {{ 'published version'|xlt }} #{{ published.id|text }}, {{ 'saved by'|xlt }} {{ published.by|text }} {{ published.at|text }}
+        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <strong>{{ 'Templates for the Demographics card'|xlt }}</strong>
+            {% if activeName %}
+                <form method="post" class="mb-0">
+                    <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
+                    <input type="hidden" name="template_name" value="{{ selected|attr }}">
+                    <button type="submit" name="action" value="revert" class="btn btn-sm btn-outline-danger">{{ 'Use the core card'|xlt }}</button>
+                </form>
             {% else %}
-                <span class="badge badge-secondary">{{ 'Core card'|xlt }}</span>
-                {{ 'OpenEMR\'s built-in Demographics card is in use.'|xlt }}
-            {% endif %}
-            {% if draft %}
-                <span class="ml-3 badge badge-warning">{{ 'Unpublished draft'|xlt }}</span>
-                #{{ draft.id|text }}, {{ draft.by|text }} {{ draft.at|text }}
+                <span><span class="badge badge-secondary">{{ 'Core card'|xlt }}</span> {{ 'OpenEMR\'s built-in Demographics card is in use.'|xlt }}</span>
             {% endif %}
         </div>
+        {% if templates is empty %}
+            <div class="card-body py-2 text-muted">{{ 'No templates yet. Edit the starter below and save it as a new template.'|xlt }}</div>
+        {% else %}
+            <table class="table table-sm mb-0">
+                <thead><tr><th>{{ 'Name'|xlt }}</th><th>{{ 'Published version'|xlt }}</th><th>{{ 'Draft'|xlt }}</th><th>{{ 'Dashboard'|xlt }}</th></tr></thead>
+                <tbody>
+                {% for template in templates %}
+                    <tr{% if template.name == selected %} class="table-active"{% endif %}>
+                        <td>
+                            <a href="?template={{ template.name|url_encode|attr }}">{{ template.name|text }}</a>
+                            {% if template.name == selected %}<span class="text-muted small">({{ 'editing'|xlt }})</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if template.published %}
+                                #{{ template.published.id|text }}, {{ template.published.by|text }} {{ template.published.at|text }}
+                            {% else %}
+                                <span class="text-muted">{{ 'not published'|xlt }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if template.draft %}
+                                <span class="badge badge-warning">{{ 'Unpublished draft'|xlt }}</span> #{{ template.draft.id|text }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if template.active %}
+                                <span class="badge badge-success">{{ 'Active'|xlt }}</span>
+                            {% elseif template.published %}
+                                <form method="post" class="mb-0">
+                                    <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
+                                    <input type="hidden" name="template_name" value="{{ template.name|attr }}">
+                                    <button type="submit" name="action" value="activate" class="btn btn-sm btn-outline-primary">{{ 'Make active'|xlt }}</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
     </div>
 
     <div class="row">
@@ -55,18 +94,27 @@
             <form method="post" id="template-form">
                 <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
                 <input type="hidden" name="draft_id" value="{{ draft ? draft.id|attr : '' }}">
-                <label for="source" class="font-weight-bold">{{ 'Template'|xlt }}</label>
+                <input type="hidden" name="template_name" value="{{ selected|attr }}">
+                <label for="source" class="font-weight-bold">
+                    {% if selected %}{{ 'Editing'|xlt }}: {{ selected|text }}{% else %}{{ 'New template'|xlt }}{% endif %}
+                </label>
                 <textarea id="source" name="source" class="form-control text-monospace small" rows="28" spellcheck="false">{{ source|text }}</textarea>
 
                 <div class="mt-2">
                     <button type="submit" name="action" value="check" class="btn btn-secondary">{{ 'Check and preview'|xlt }}</button>
-                    <button type="submit" name="action" value="save_draft" class="btn btn-primary">{{ 'Save draft'|xlt }}</button>
+                    {% if selected %}
+                        <button type="submit" name="action" value="save_draft" class="btn btn-primary">{{ 'Save draft'|xlt }}</button>
+                    {% endif %}
                     {% if draft %}
                         <button type="submit" name="action" value="publish" class="btn btn-success">{{ 'Publish draft'|xlt }} #{{ draft.id|text }}</button>
                     {% endif %}
-                    {% if published %}
-                        <button type="submit" name="action" value="revert" class="btn btn-outline-danger float-right">{{ 'Use the core card'|xlt }}</button>
-                    {% endif %}
+                </div>
+                <div class="input-group input-group-sm mt-2">
+                    <label class="sr-only" for="new_name">{{ 'New template name'|xlt }}</label>
+                    <input type="text" id="new_name" name="new_name" class="form-control" maxlength="100" placeholder="{{ 'New template name'|xla }}">
+                    <div class="input-group-append">
+                        <button type="submit" name="action" value="save_as_new" class="btn btn-outline-primary">{{ 'Save as new template'|xlt }}</button>
+                    </div>
                 </div>
             </form>
 

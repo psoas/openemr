@@ -21,29 +21,69 @@ use OpenEMR\Common\Database\QueryUtils;
 
 final class UserTemplateRepository
 {
-    private const SELECT = 'SELECT t.`id`, t.`scope`, t.`slot`, t.`status`, t.`source`, t.`used_fields`,'
-        . ' t.`dataset_version`, t.`created_by`, t.`created_at`,'
+    private const SELECT = 'SELECT t.`id`, t.`scope`, t.`slot`, t.`name`, t.`status`, t.`is_active`, t.`source`,'
+        . ' t.`used_fields`, t.`dataset_version`, t.`created_by`, t.`created_at`,'
         . ' CONCAT_WS(" ", u.`fname`, u.`lname`) AS created_by_name'
         . ' FROM `user_templates` t LEFT JOIN `users` u ON u.`id` = t.`created_by`';
 
-    public function findPublished(string $scope, string $slot): ?UserTemplate
+    /**
+     * The published version shown on the dashboard for this slot, if any.
+     */
+    public function findActive(string $scope, string $slot): ?UserTemplate
     {
         return $this->findOne(
-            self::SELECT . ' WHERE t.`scope` = ? AND t.`slot` = ? AND t.`status` = ? ORDER BY t.`id` DESC LIMIT 1',
+            self::SELECT . ' WHERE t.`scope` = ? AND t.`slot` = ? AND t.`status` = ? AND t.`is_active` = 1'
+            . ' ORDER BY t.`id` DESC LIMIT 1',
             [$scope, $slot, TemplateStatus::Published->value]
         );
     }
 
     /**
-     * The newest draft saved after the published version, if any.
+     * Names of the templates saved for this slot, in alphabetical order.
+     *
+     * @return list<string>
      */
-    public function findPendingDraft(string $scope, string $slot): ?UserTemplate
+    public function listNames(string $scope, string $slot): array
     {
-        $published = $this->findPublished($scope, $slot);
+        $names = QueryUtils::fetchTableColumn(
+            'SELECT DISTINCT `name` FROM `user_templates` WHERE `scope` = ? AND `slot` = ? ORDER BY `name`',
+            'name',
+            [$scope, $slot]
+        );
+        return array_values(array_filter($names, is_string(...)));
+    }
+
+    public function nameExists(string $scope, string $slot, string $name): bool
+    {
+        return QueryUtils::fetchSingleValue(
+            'SELECT 1 AS found FROM `user_templates` WHERE `scope` = ? AND `slot` = ? AND `name` = ? LIMIT 1',
+            'found',
+            [$scope, $slot, $name]
+        ) !== null;
+    }
+
+    /**
+     * The published version of one named template, if it has one.
+     */
+    public function findPublished(string $scope, string $slot, string $name): ?UserTemplate
+    {
         return $this->findOne(
-            self::SELECT . ' WHERE t.`scope` = ? AND t.`slot` = ? AND t.`status` = ? AND t.`id` > ?'
+            self::SELECT . ' WHERE t.`scope` = ? AND t.`slot` = ? AND t.`name` = ? AND t.`status` = ?'
             . ' ORDER BY t.`id` DESC LIMIT 1',
-            [$scope, $slot, TemplateStatus::Draft->value, $published?->id ?? 0]
+            [$scope, $slot, $name, TemplateStatus::Published->value]
+        );
+    }
+
+    /**
+     * The newest draft of one named template saved after its published version, if any.
+     */
+    public function findPendingDraft(string $scope, string $slot, string $name): ?UserTemplate
+    {
+        $published = $this->findPublished($scope, $slot, $name);
+        return $this->findOne(
+            self::SELECT . ' WHERE t.`scope` = ? AND t.`slot` = ? AND t.`name` = ? AND t.`status` = ? AND t.`id` > ?'
+            . ' ORDER BY t.`id` DESC LIMIT 1',
+            [$scope, $slot, $name, TemplateStatus::Draft->value, $published->id ?? 0]
         );
     }
 
@@ -58,40 +98,73 @@ final class UserTemplateRepository
     public function saveDraft(
         string $scope,
         string $slot,
+        string $name,
         string $source,
         array $usedFields,
         int $datasetVersion,
         int $userId,
     ): int {
         return QueryUtils::sqlInsert(
-            'INSERT INTO `user_templates` (`scope`, `slot`, `status`, `source`, `used_fields`, `dataset_version`, `created_by`)'
-            . ' VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [$scope, $slot, TemplateStatus::Draft->value, $source, json_encode($usedFields, JSON_THROW_ON_ERROR), $datasetVersion, $userId]
+            'INSERT INTO `user_templates`'
+            . ' (`scope`, `slot`, `name`, `status`, `source`, `used_fields`, `dataset_version`, `created_by`)'
+            . ' VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                $scope,
+                $slot,
+                $name,
+                TemplateStatus::Draft->value,
+                $source,
+                json_encode($usedFields, JSON_THROW_ON_ERROR),
+                $datasetVersion,
+                $userId,
+            ]
         );
     }
 
     /**
-     * Make one saved version the live one and retire whatever was live before.
+     * Make a draft the published version of its template and retire the
+     * version it replaces. If that template is the active one, the new
+     * version becomes active too, so the dashboard shows it right away.
      */
-    public function publish(UserTemplate $template): void
+    public function publish(UserTemplate $draft): void
     {
-        QueryUtils::inTransaction(function () use ($template): void {
-            $this->retirePublished($template->scope, $template->slot);
+        QueryUtils::inTransaction(function () use ($draft): void {
+            $previous = $this->findPublished($draft->scope, $draft->slot, $draft->name);
             QueryUtils::sqlStatementThrowException(
-                'UPDATE `user_templates` SET `status` = ? WHERE `id` = ?',
-                [TemplateStatus::Published->value, $template->id]
+                'UPDATE `user_templates` SET `status` = ?, `is_active` = 0'
+                . ' WHERE `scope` = ? AND `slot` = ? AND `name` = ? AND `status` = ?',
+                [TemplateStatus::Retired->value, $draft->scope, $draft->slot, $draft->name, TemplateStatus::Published->value]
+            );
+            QueryUtils::sqlStatementThrowException(
+                'UPDATE `user_templates` SET `status` = ?, `is_active` = ? WHERE `id` = ?',
+                [TemplateStatus::Published->value, $previous?->isActive === true ? 1 : 0, $draft->id]
             );
         });
     }
 
     /**
-     * Stop using any uploaded template for this slot, so the core card shows again.
+     * Show this published version on the dashboard instead of whatever was shown before.
      */
-    public function retirePublished(string $scope, string $slot): void
+    public function activate(UserTemplate $published): void
+    {
+        QueryUtils::inTransaction(function () use ($published): void {
+            $this->deactivate($published->scope, $published->slot);
+            QueryUtils::sqlStatementThrowException(
+                'UPDATE `user_templates` SET `is_active` = 1 WHERE `id` = ? AND `status` = ?',
+                [$published->id, TemplateStatus::Published->value]
+            );
+        });
+    }
+
+    /**
+     * Stop showing any uploaded template for this slot, so the core card shows
+     * again. The templates stay saved and can be made active later.
+     */
+    public function deactivate(string $scope, string $slot): void
     {
         QueryUtils::sqlStatementThrowException(
-            'UPDATE `user_templates` SET `status` = ? WHERE `scope` = ? AND `slot` = ? AND `status` = ?',
-            [TemplateStatus::Retired->value, $scope, $slot, TemplateStatus::Published->value]
+            'UPDATE `user_templates` SET `is_active` = 0 WHERE `scope` = ? AND `slot` = ? AND `is_active` = 1',
+            [$scope, $slot]
         );
     }
 
@@ -119,7 +192,9 @@ final class UserTemplateRepository
             self::int($row, 'id'),
             self::string($row, 'scope'),
             self::string($row, 'slot'),
+            self::string($row, 'name'),
             TemplateStatus::from(self::string($row, 'status')),
+            self::int($row, 'is_active') === 1,
             self::string($row, 'source'),
             $fields,
             self::int($row, 'dataset_version'),

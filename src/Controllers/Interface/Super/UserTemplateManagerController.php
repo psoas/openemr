@@ -4,10 +4,11 @@
  * Template manager: lets an administrator replace a dashboard card with a
  * sandboxed Twig template.
  *
- * The admin edits a template, checks it against the dataset's field list,
- * previews it with made-up data, saves it as a draft and publishes it.
- * Staff keep seeing the current card until a draft is published, and
- * "Use the core card" goes back to the card OpenEMR ships.
+ * An admin can keep several named templates for the card and picks which
+ * one is active. Each template is edited, checked against the dataset's
+ * field list, previewed with made-up data, saved as a draft and published.
+ * Staff see the active template's published version; "Use the core card"
+ * goes back to the card OpenEMR ships, keeping the templates saved.
  *
  * @package   OpenEMR
  * @link      https://www.open-emr.org
@@ -28,6 +29,7 @@ use OpenEMR\UserTemplates\SandboxedTemplateRenderer;
 use OpenEMR\UserTemplates\ScanResult;
 use OpenEMR\UserTemplates\TemplateFieldScanner;
 use OpenEMR\UserTemplates\TemplateOutputTooLargeException;
+use OpenEMR\UserTemplates\TemplateStatus;
 use OpenEMR\UserTemplates\UserTemplate;
 use OpenEMR\UserTemplates\UserTemplateRepository;
 use Psr\Log\LoggerInterface;
@@ -46,6 +48,9 @@ final readonly class UserTemplateManagerController
 
     /** Largest template source accepted, in bytes. */
     private const MAX_SOURCE_BYTES = 50_000;
+
+    /** Longest template name, matching user_templates.name. */
+    private const MAX_NAME_LENGTH = 100;
 
     public function __construct(
         private UserTemplateRepository $repository,
@@ -69,40 +74,69 @@ final readonly class UserTemplateManagerController
             );
         }
 
+        $scope = $this->dataset->scope();
         $source = null;
         $scan = null;
         $message = null;
+        $selected = $request->query->getString('template');
 
         if ($request->getMethod() === 'POST') {
             if (!CsrfUtils::verifyCsrfToken($request->request->getString('csrf_token_form'), $this->session)) {
                 CsrfUtils::csrfNotVerified();
             }
             $action = $request->request->getString('action');
+            $selected = $request->request->getString('template_name');
             $source = $request->request->getString('source');
             if (strlen($source) > self::MAX_SOURCE_BYTES) {
                 $message = xl('The template is too large.');
                 $source = substr($source, 0, self::MAX_SOURCE_BYTES);
             } else {
-                [$scan, $message] = match ($action) {
-                    'check' => [$this->scanner->scan($source, $this->dataset), null],
-                    'save_draft' => $this->saveDraft($source),
-                    'publish' => $this->publish($request->request->getInt('draft_id')),
-                    'revert' => $this->revert(),
-                    default => [null, null],
+                [$scan, $message, $selected] = match ($action) {
+                    'check' => [$this->scanner->scan($source, $this->dataset), null, $selected],
+                    'save_draft' => [...$this->saveDraft($selected, $source), $selected],
+                    'save_as_new' => $this->saveAsNew(trim($request->request->getString('new_name')), $source, $selected),
+                    'publish' => [...$this->publish($request->request->getInt('draft_id')), $selected],
+                    'activate' => [...$this->activate($selected), $selected],
+                    'revert' => [...$this->revert(), $selected],
+                    default => [null, null, $selected],
                 };
+                if ($action === 'activate' || $action === 'revert') {
+                    // Those buttons don't send the editor; show the saved source.
+                    $source = null;
+                }
             }
         }
 
-        $published = $this->repository->findPublished($this->dataset->scope(), self::SLOT);
-        $draft = $this->repository->findPendingDraft($this->dataset->scope(), self::SLOT);
+        $names = $this->repository->listNames($scope, self::SLOT);
+        $active = $this->repository->findActive($scope, self::SLOT);
+        if (!in_array($selected, $names, true)) {
+            $selected = $active->name ?? $names[0] ?? '';
+        }
+        $published = $selected === '' ? null : $this->repository->findPublished($scope, self::SLOT, $selected);
+        $draft = $selected === '' ? null : $this->repository->findPendingDraft($scope, self::SLOT, $selected);
         $source ??= $draft->source ?? $published->source ?? self::starterTemplate();
         $scan ??= $this->scanner->scan($source, $this->dataset);
+
+        $templates = [];
+        foreach ($names as $name) {
+            $namePublished = $this->repository->findPublished($scope, self::SLOT, $name);
+            $nameDraft = $this->repository->findPendingDraft($scope, self::SLOT, $name);
+            $templates[] = [
+                'name' => $name,
+                'active' => $namePublished !== null && $namePublished->isActive,
+                'published' => $namePublished === null ? null : self::describe($namePublished),
+                'draft' => $nameDraft === null ? null : self::describe($nameDraft),
+            ];
+        }
 
         return new Response(
             $this->twig->render(self::TEMPLATE, [
                 'csrfToken' => CsrfUtils::collectCsrfToken($this->session),
                 'featureEnabled' => $this->featureEnabled,
                 'slot' => self::SLOT,
+                'templates' => $templates,
+                'activeName' => $active?->name,
+                'selected' => $selected,
                 'source' => $source,
                 'message' => $message,
                 'published' => $published === null ? null : self::describe($published),
@@ -132,21 +166,49 @@ final readonly class UserTemplateManagerController
     /**
      * @return array{ScanResult, string}
      */
-    private function saveDraft(string $source): array
+    private function saveDraft(string $name, string $source): array
     {
         $scan = $this->scanner->scan($source, $this->dataset);
+        if ($name === '' || !$this->repository->nameExists($this->dataset->scope(), self::SLOT, $name)) {
+            return [$scan, xl('Choose a template first, or save this one as a new template.')];
+        }
         if (!$scan->isValid()) {
             return [$scan, xl('Fix the problems below before saving.')];
         }
+        $this->insertDraft($name, $source, $scan);
+        return [$scan, xl('Draft saved. Staff still see the current card until you publish.')];
+    }
+
+    /**
+     * @return array{ScanResult, string, string} the scan, a message and the template to show
+     */
+    private function saveAsNew(string $name, string $source, string $current): array
+    {
+        $scan = $this->scanner->scan($source, $this->dataset);
+        if ($name === '' || mb_strlen($name) > self::MAX_NAME_LENGTH) {
+            return [$scan, xl('Give the new template a name of up to 100 characters.'), $current];
+        }
+        if ($this->repository->nameExists($this->dataset->scope(), self::SLOT, $name)) {
+            return [$scan, xl('A template with that name already exists.'), $current];
+        }
+        if (!$scan->isValid()) {
+            return [$scan, xl('Fix the problems below before saving.'), $current];
+        }
+        $this->insertDraft($name, $source, $scan);
+        return [$scan, xl('New template saved as a draft. Publish it, then make it active to show it on the dashboard.'), $name];
+    }
+
+    private function insertDraft(string $name, string $source, ScanResult $scan): void
+    {
         $this->repository->saveDraft(
             $this->dataset->scope(),
             self::SLOT,
+            $name,
             $source,
             $scan->usedFields,
             $this->dataset->version(),
             $this->currentUserId(),
         );
-        return [$scan, xl('Draft saved. Staff still see the current card until you publish.')];
     }
 
     /**
@@ -155,7 +217,7 @@ final readonly class UserTemplateManagerController
     private function publish(int $draftId): array
     {
         $draft = $this->repository->find($draftId);
-        if ($draft === null || $draft->slot !== self::SLOT) {
+        if ($draft === null || $draft->slot !== self::SLOT || $draft->status !== TemplateStatus::Draft) {
             return [null, xl('That draft no longer exists.')];
         }
         // Check again: the dataset may have changed since the draft was saved.
@@ -164,8 +226,25 @@ final readonly class UserTemplateManagerController
             return [$scan, xl('The draft no longer passes the check, so it was not published.')];
         }
         $this->repository->publish($draft);
-        $this->logger->info('Dashboard template published', ['template_id' => $draft->id, 'slot' => $draft->slot]);
-        return [$scan, xl('Published. The dashboard now uses this template.')];
+        $this->logger->info('Dashboard template published', ['template_id' => $draft->id, 'slot' => $draft->slot, 'name' => $draft->name]);
+        $active = $this->repository->findActive($this->dataset->scope(), self::SLOT);
+        return [$scan, $active?->id === $draft->id
+            ? xl('Published. The dashboard now uses this version.')
+            : xl('Published. Make it active to show it on the dashboard.')];
+    }
+
+    /**
+     * @return array{null, string}
+     */
+    private function activate(string $name): array
+    {
+        $published = $this->repository->findPublished($this->dataset->scope(), self::SLOT, $name);
+        if ($published === null) {
+            return [null, xl('Publish the template before making it active.')];
+        }
+        $this->repository->activate($published);
+        $this->logger->info('Dashboard template made active', ['template_id' => $published->id, 'slot' => self::SLOT, 'name' => $name]);
+        return [null, xl('The dashboard now uses this template.')];
     }
 
     /**
@@ -173,9 +252,9 @@ final readonly class UserTemplateManagerController
      */
     private function revert(): array
     {
-        $this->repository->retirePublished($this->dataset->scope(), self::SLOT);
-        $this->logger->info('Dashboard template retired; core card restored', ['slot' => self::SLOT]);
-        return [null, xl('The dashboard uses the core card again.')];
+        $this->repository->deactivate($this->dataset->scope(), self::SLOT);
+        $this->logger->info('Dashboard templates deactivated; core card restored', ['slot' => self::SLOT]);
+        return [null, xl('The dashboard uses the core card again. Your templates are still saved.')];
     }
 
     /**

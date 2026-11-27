@@ -39,7 +39,7 @@ final class TemplateCardFactory
         if (!is_int($patientId) || $patientId <= 0) {
             return $coreCard;
         }
-        $template = (new UserTemplateRepository())->findPublished(DashboardCardDataset::SCOPE, $slot);
+        $template = (new UserTemplateRepository())->findActive(DashboardCardDataset::SCOPE, $slot);
         if ($template === null) {
             return $coreCard;
         }
