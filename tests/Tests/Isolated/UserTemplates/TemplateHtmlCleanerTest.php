@@ -26,6 +26,20 @@ final class TemplateHtmlCleanerTest extends TestCase
         $this->assertSame($html, (new TemplateHtmlCleaner())->clean($html));
     }
 
+    public function testKeepsDetailsAndSummaryForShowAndHide(): void
+    {
+        $html = '<details class="mt-1"><summary class="btn btn-link p-0">More</summary><div class="row">x</div></details>';
+
+        $this->assertSame($html, (new TemplateHtmlCleaner())->clean($html));
+    }
+
+    public function testKeepsTheOpenAttributeOnDetails(): void
+    {
+        $html = (new TemplateHtmlCleaner())->clean('<details open><summary>More</summary>x</details>');
+
+        $this->assertStringContainsString('<details open', $html);
+    }
+
     #[DataProvider('removedHtmlProvider')]
     public function testRemovesWhatIsNotAllowed(string $html, string $expected): void
     {
@@ -47,6 +61,7 @@ final class TemplateHtmlCleanerTest extends TestCase
             'external link' => ['<a href="https://example.com/?n=Ann">x</a>', '<a>x</a>'],
             'image' => ['<img src="https://example.com/x.png">', ''],
             'form' => ['<form action="/x"><input name="a"></form>', ''],
+            'toggle handler on details' => ['<details ontoggle="alert(1)"><summary>M</summary></details>', '<details><summary>M</summary></details>'],
             'inline style' => ['<div style="color:red">x</div>', '<div>x</div>'],
             'page-covering class' => ['<div class="position-fixed fixed-top text-danger">x</div>', '<div class="text-danger">x</div>'],
         ];

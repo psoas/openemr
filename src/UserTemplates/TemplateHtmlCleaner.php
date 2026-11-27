@@ -5,7 +5,8 @@
  *
  * Autoescaping protects patient data, but not HTML typed into the template
  * itself. This removes anything outside a short allow-list of layout tags
- * and attributes: scripts, event handlers, iframes, forms, images, inline
+ * and attributes (including <details>/<summary>, so a card can show and
+ * hide sections without any script): scripts, event handlers, iframes, forms, images, inline
  * styles, javascript: and external links, and the Bootstrap classes that
  * would let a card cover the rest of the page.
  *
@@ -24,6 +25,7 @@ use HTMLPurifier;
 use HTMLPurifier_Config;
 use HTMLPurifier_Context;
 use HTMLPurifier_ErrorCollector;
+use HTMLPurifier_HTMLDefinition;
 
 final readonly class TemplateHtmlCleaner
 {
@@ -32,11 +34,14 @@ final readonly class TemplateHtmlCleaner
         'div', 'span', 'p', 'br', 'hr', 'strong', 'b', 'em', 'i', 'u', 'small',
         'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'dl', 'dt', 'dd',
         'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a', 'abbr',
+        // Show/hide sections; the browser handles the click, no script.
+        'details', 'summary',
     ];
 
     /** Attributes a template may produce: bare names on any allowed tag, `tag.name` on that tag only. */
     public const ALLOWED_ATTRIBUTES = [
         'class', 'title', 'a.href', 'th.colspan', 'th.rowspan', 'th.scope', 'td.colspan', 'td.rowspan',
+        'details.open',
     ];
 
     /** Classes that would take the card out of its place on the page. */
@@ -90,6 +95,9 @@ final readonly class TemplateHtmlCleaner
         $config->set('Core.Encoding', 'UTF-8');
         // The proof of concept doesn't cache HTMLPurifier's definitions.
         $config->set('Cache.DefinitionImpl', null);
+        // HTMLPurifier only knows HTML 4 tags, so the HTML 5 ones are defined here.
+        $config->set('HTML.DefinitionID', 'openemr-user-templates');
+        $config->set('HTML.DefinitionRev', 1);
         $config->set('HTML.AllowedElements', self::ALLOWED_ELEMENTS);
         $config->set('HTML.AllowedAttributes', self::ALLOWED_ATTRIBUTES);
         $config->set('Attr.ForbiddenClasses', self::FORBIDDEN_CLASSES);
@@ -98,6 +106,12 @@ final readonly class TemplateHtmlCleaner
         $config->set('URI.DisableExternal', true);
         $config->set('URI.DisableExternalResources', true);
         $config->set('Core.CollectErrors', $collectErrors);
+        // Must come after every setting: HTMLPurifier locks the config here.
+        $definition = $config->maybeGetRawHTMLDefinition();
+        if ($definition instanceof HTMLPurifier_HTMLDefinition) {
+            $definition->addElement('details', 'Block', 'Flow', 'Common', ['open' => 'Bool']);
+            $definition->addElement('summary', 'Block', 'Flow', 'Common');
+        }
         return new HTMLPurifier($config);
     }
 }
