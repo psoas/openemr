@@ -213,7 +213,7 @@ $GLOBALS_METADATA = [
             xl('Enable Admin-Uploaded Dashboard Templates (Experimental)'),
             'bool',                           // data type
             '0',                              // default = false
-            xl('Lets administrators replace dashboard cards with sandboxed Twig templates from Administration > Forms > Dashboard Templates.')
+            xl('Lets administrators replace dashboard cards with sandboxed Twig templates from Administration > Forms > Template Manager.')
         ],
 
         'enable_compact_mode' => [

@@ -1035,7 +1035,7 @@
                         ]
                     },
                     {
-                        "label": "Dashboard Templates",
+                        "label": "Template Manager",
                         "menu_id": "adm0",
                         "target": "adm",
                         "url": "/interface/super/user_templates.php",

@@ -20,7 +20,7 @@
 #}
 <html>
 <head>
-    <title>{{ 'Dashboard Templates'|xlt }}</title>
+    <title>{{ 'Template Manager'|xlt }}</title>
     {{ setupHeader([], false) }}
     <style>
         /* The check result sits a fixed distance after the Edit label. */
@@ -136,8 +136,9 @@
             </table>
         </div>
 
-        <div class="col-lg-6 mb-3">
-            <form method="post" id="template-form">
+        <div class="col-lg-6 mb-3 d-flex flex-column">
+            {# The form and editor stretch so the editor ends level with the bottom of Available Fields. #}
+            <form method="post" id="template-form" class="d-flex flex-column flex-grow-1 mb-0">
                 <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
                 <input type="hidden" name="draft_id" value="{{ draft ? draft.id|attr : '' }}">
                 <input type="hidden" name="template_name" value="{{ selected|attr }}">
@@ -177,7 +178,7 @@
                     </div>
                 {% endif %}
 
-                <textarea id="source" name="source" class="form-control text-monospace small" rows="30" spellcheck="false">{{ source|text }}</textarea>
+                <textarea id="source" name="source" class="form-control text-monospace small flex-grow-1" rows="30" spellcheck="false">{{ source|text }}</textarea>
             </form>
         </div>
     </div>
