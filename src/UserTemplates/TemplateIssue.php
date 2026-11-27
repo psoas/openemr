@@ -18,7 +18,8 @@ final readonly class TemplateIssue
 {
     public function __construct(
         public string $message,
-        public int $line,
+        /** Line in the template, or null when the issue is about its output. */
+        public ?int $line,
     ) {
     }
 }

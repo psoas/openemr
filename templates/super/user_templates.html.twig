@@ -83,7 +83,7 @@
                         <strong>{{ 'Check found problems'|xlt }}:</strong>
                         <ul class="mb-0">
                             {% for issue in issues %}
-                                <li>{{ 'Line'|xlt }} {{ issue.line|text }}: {{ issue.message|text }}</li>
+                                <li>{% if issue.line is not null %}{{ 'Line'|xlt }} {{ issue.line|text }}: {% endif %}{{ issue.message|text }}</li>
                             {% endfor %}
                         </ul>
                     </div>

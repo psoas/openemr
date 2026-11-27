@@ -60,8 +60,15 @@ final readonly class TemplateFieldScanner
         if ($issues === []) {
             try {
                 $this->renderer->compile($source);
+                // HTML written in the template itself that cleaning would remove.
+                $removed = $this->renderer->findRemovedHtml($source, [$dataset->rootName() => $dataset->sample()]);
+                foreach ($removed as $message) {
+                    $issues[] = new TemplateIssue('Not allowed in the output: ' . $message, null);
+                }
             } catch (TwigError $e) {
                 $issues[] = new TemplateIssue($e->getRawMessage(), $e->getTemplateLine());
+            } catch (TemplateOutputTooLargeException) {
+                $issues[] = new TemplateIssue('The template produces more output than allowed with the sample data', null);
             }
         }
 

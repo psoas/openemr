@@ -8,7 +8,8 @@
  * every value as HTML and only allows a short list of tags, filters,
  * functions and tests (strict security policy, the Twig 4 behavior).
  * Templates receive plain arrays of scalars, so there are no objects whose
- * methods or properties a template could reach.
+ * methods or properties a template could reach. Autoescaping covers the
+ * data; TemplateHtmlCleaner then cleans the HTML the template itself writes.
  *
  * @package   OpenEMR
  * @link      https://www.open-emr.org
@@ -49,7 +50,7 @@ final readonly class SandboxedTemplateRenderer
 
     private Sandbox $sandbox;
 
-    public function __construct()
+    public function __construct(private TemplateHtmlCleaner $cleaner = new TemplateHtmlCleaner())
     {
         $this->environment = new Environment(new ArrayLoader(), [
             'autoescape' => 'html',
@@ -71,13 +72,38 @@ final readonly class SandboxedTemplateRenderer
     }
 
     /**
-     * Render a template with plain data.
+     * Render a template with plain data and clean the resulting HTML.
      *
      * @param array<string, array<string, string|int|float|bool|null>|string|int|float|bool|null> $context
      * @throws \Twig\Error\Error when the template doesn't parse or uses something the sandbox blocks
      * @throws TemplateOutputTooLargeException when the output is larger than MAX_OUTPUT_BYTES
      */
     public function render(string $source, array $context): string
+    {
+        return $this->cleaner->clean($this->renderUncleaned($source, $context));
+    }
+
+    /**
+     * Render with plain data and describe the HTML that cleaning removes, so
+     * the upload check can report it. Only the branches the data reaches are
+     * seen; render() cleans every branch regardless.
+     *
+     * @param array<string, array<string, string|int|float|bool|null>|string|int|float|bool|null> $context
+     * @return list<string>
+     * @throws \Twig\Error\Error
+     * @throws TemplateOutputTooLargeException
+     */
+    public function findRemovedHtml(string $source, array $context): array
+    {
+        return $this->cleaner->findRemovals($this->renderUncleaned($source, $context));
+    }
+
+    /**
+     * @param array<string, array<string, string|int|float|bool|null>|string|int|float|bool|null> $context
+     * @throws \Twig\Error\Error
+     * @throws TemplateOutputTooLargeException
+     */
+    private function renderUncleaned(string $source, array $context): string
     {
         $output = $this->sandbox->createTemplate($source, 'user template')->render($context);
         if (strlen($output) > self::MAX_OUTPUT_BYTES) {

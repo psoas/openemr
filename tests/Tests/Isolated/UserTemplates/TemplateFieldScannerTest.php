@@ -102,6 +102,15 @@ final class TemplateFieldScannerTest extends TestCase
         $this->assertStringContainsString('raw', $result->issues[0]->message);
     }
 
+    public function testReportsHtmlThatCleaningRemoves(): void
+    {
+        $result = $this->scanner->scan('<p>{{ patient.full_name }}</p><script>alert(1)</script>', $this->dataset);
+
+        $this->assertFalse($result->isValid());
+        $this->assertNull($result->issues[0]->line);
+        $this->assertStringContainsString('script', $result->issues[0]->message);
+    }
+
     public function testReportsSyntaxErrors(): void
     {
         $result = $this->scanner->scan("{{ patient.full_name }}\n{% if %}", $this->dataset);

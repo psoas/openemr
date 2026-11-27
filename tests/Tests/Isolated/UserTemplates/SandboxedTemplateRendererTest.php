@@ -40,6 +40,16 @@ final class SandboxedTemplateRendererTest extends TestCase
         $this->assertSame('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>', $html);
     }
 
+    public function testCleansHtmlWrittenInTheTemplate(): void
+    {
+        $html = (new SandboxedTemplateRenderer())->render(
+            '<p onclick="alert(1)">{{ patient.full_name }}</p><script>alert(2)</script>',
+            ['patient' => ['full_name' => 'Ann']]
+        );
+
+        $this->assertSame('<p>Ann</p>', $html);
+    }
+
     #[DataProvider('blockedTemplateProvider')]
     public function testBlocksWhatThePolicyDoesNotAllow(string $source): void
     {
