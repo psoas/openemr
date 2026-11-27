@@ -156,6 +156,10 @@
                     {% if selected %}
                         <button type="submit" name="action" value="save_draft" class="btn btn-sm btn-primary">{{ 'Save draft'|xlt }}</button>
                     {% endif %}
+                    {# Upload and Download only move text between the editor and a file on this computer; nothing is saved until Save draft. #}
+                    <button type="button" class="btn btn-sm btn-outline-secondary js-template-upload">{{ 'Upload'|xlt }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary js-template-download" data-file-name="{{ (selected ?: 'template')|attr }}">{{ 'Download'|xlt }}</button>
+                    <input type="file" class="d-none js-template-file" accept=".twig,.html,.htm,.txt,text/html,text/plain" aria-label="{{ 'Template file to upload'|xla }}">
                     {% if draft %}
                         <button type="submit" name="action" value="publish" class="btn btn-sm btn-success">{{ 'Publish draft'|xlt }} #{{ draft.id|text }}</button>
                     {% endif %}
@@ -199,6 +203,42 @@
             form.submit();
         });
     });
+
+    // Upload puts a file's text in the editor (Check and preview, then Save
+    // draft, to keep it); Download saves the editor's text as a file.
+    (function () {
+        var source = document.getElementById('source');
+        var fileInput = document.querySelector('.js-template-file');
+        var downloadButton = document.querySelector('.js-template-download');
+
+        document.querySelector('.js-template-upload').addEventListener('click', function () {
+            fileInput.value = '';
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', function () {
+            var file = fileInput.files[0];
+            if (!file) {
+                return;
+            }
+            file.text().then(function (text) {
+                source.value = text;
+                source.focus();
+            });
+        });
+
+        downloadButton.addEventListener('click', function () {
+            var base = downloadButton.dataset.fileName.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'template';
+            var url = URL.createObjectURL(new Blob([source.value], {type: 'text/plain'}));
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = base.toLowerCase() + '.html.twig';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        });
+    })();
 </script>
 </body>
 </html>
