@@ -49,6 +49,16 @@ final readonly class UserTemplateManagerController
     /** Largest template source accepted, in bytes. */
     private const MAX_SOURCE_BYTES = 50_000;
 
+    /**
+     * Template types for the type menu. Only the Demographics card is built;
+     * the schedule windows come with the Visit List project.
+     */
+    private const TEMPLATE_TYPES = [
+        ['value' => 'demographics', 'label' => 'Demographics', 'available' => true],
+        ['value' => 'daily_schedule', 'label' => 'Daily Schedule', 'available' => false],
+        ['value' => 'total_schedule', 'label' => 'Total Schedule', 'available' => false],
+    ];
+
     /** Longest template name, matching user_templates.name. */
     private const MAX_NAME_LENGTH = 100;
 
@@ -134,6 +144,9 @@ final readonly class UserTemplateManagerController
                 'csrfToken' => CsrfUtils::collectCsrfToken($this->session),
                 'featureEnabled' => $this->featureEnabled,
                 'slot' => self::SLOT,
+                'templateTypes' => self::TEMPLATE_TYPES,
+                'templateType' => self::SLOT,
+                'rootName' => $this->dataset->rootName(),
                 'templates' => $templates,
                 'activeName' => $active?->name,
                 'selected' => $selected,
@@ -195,7 +208,7 @@ final readonly class UserTemplateManagerController
             return [$scan, xl('Fix the problems below before saving.'), $current];
         }
         $this->insertDraft($name, $source, $scan);
-        return [$scan, xl('New template saved as a draft. Publish it, then make it active to show it on the dashboard.'), $name];
+        return [$scan, xl('New template saved as a draft. Publish it, then check Active to show it on the dashboard.'), $name];
     }
 
     private function insertDraft(string $name, string $source, ScanResult $scan): void
@@ -230,7 +243,7 @@ final readonly class UserTemplateManagerController
         $active = $this->repository->findActive($this->dataset->scope(), self::SLOT);
         return [$scan, $active?->id === $draft->id
             ? xl('Published. The dashboard now uses this version.')
-            : xl('Published. Make it active to show it on the dashboard.')];
+            : xl('Published. Check Active to show it on the dashboard.')];
     }
 
     /**
@@ -240,7 +253,7 @@ final readonly class UserTemplateManagerController
     {
         $published = $this->repository->findPublished($this->dataset->scope(), self::SLOT, $name);
         if ($published === null) {
-            return [null, xl('Publish the template before making it active.')];
+            return [null, xl('Publish the template before checking Active.')];
         }
         $this->repository->activate($published);
         $this->logger->info('Dashboard template made active', ['template_id' => $published->id, 'slot' => self::SLOT, 'name' => $name]);

@@ -2,10 +2,12 @@
   Dashboard template manager. Rendered by
   OpenEMR\Controllers\Interface\Super\UserTemplateManagerController.
 
-  Top: the saved templates for the card, which one is active, Make active
-  and Use the core card. Left: the editor for the selected template with
-  Check, Save draft, Publish and Save as new template. Right: the preview (rendered in the sandbox with made-up data, shown
-  in a frame that allows no scripts) and the fields the template may use.
+  Top: the template type and the saved templates, with an Active checkbox
+  each (at most one checked; none means the core card). Left: the preview
+  (rendered in the sandbox with made-up data, in a frame that allows no
+  scripts) and the available fields. Right: the editor for the selected
+  template with Check, Save draft, Publish and Save as new template, the
+  check result and the fields the template uses.
   Autoescape is off in OpenEMR, so every value goes through |text, |attr or
   a translation filter.
 
@@ -22,39 +24,48 @@
 </head>
 <body class="body_top">
 <div class="container-fluid mt-3">
-    <h2 class="h4">{{ 'Dashboard Templates'|xlt }} <span class="badge badge-info align-middle">{{ 'Experimental'|xlt }}</span></h2>
-    <p class="text-muted mb-2">
-        {{ 'Replace the Demographics card on the patient dashboard with your own layout. Templates run in a sandbox: they can only show the fields listed on the right, and cannot run code, read files or query the database.'|xlt }}
-    </p>
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <form method="get" class="form-inline mb-0">
+            <label for="template_type" class="font-weight-bold mr-2">{{ 'Template Type'|xlt }}:</label>
+            <select id="template_type" name="type" class="form-control form-control-sm">
+                {% for type in templateTypes %}
+                    <option value="{{ type.value|attr }}"{% if type.value == templateType %} selected{% endif %}{% if not type.available %} disabled{% endif %}>{{ type.label|xlt }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <div class="alert alert-info py-1 px-2 mb-0 small">
+            <span class="badge badge-info">{{ 'Experimental'|xlt }}</span>
+            {{ 'Templates run in a sandbox: they can only show the available fields, and cannot run code, read files or query the database.'|xlt }}
+        </div>
+    </div>
 
     {% if not featureEnabled %}
-        <div class="alert alert-warning">{{ 'Published templates are not shown yet: turn on "Enable Admin-Uploaded Dashboard Templates" in Administration > Globals > Appearance first.'|xlt }}</div>
+        <div class="alert alert-warning">{{ 'Active templates are not shown yet: turn on "Enable Admin-Uploaded Dashboard Templates" in Administration > Globals > Appearance first.'|xlt }}</div>
     {% endif %}
     {% if message %}
         <div class="alert alert-info">{{ message|text }}</div>
     {% endif %}
 
-    <div class="card mb-3">
-        <div class="card-header py-2 d-flex justify-content-between align-items-center">
-            <strong>{{ 'Templates for the Demographics card'|xlt }}</strong>
-            {% if activeName %}
-                <form method="post" class="mb-0">
-                    <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
-                    <input type="hidden" name="template_name" value="{{ selected|attr }}">
-                    <button type="submit" name="action" value="revert" class="btn btn-sm btn-outline-danger">{{ 'Use the core card'|xlt }}</button>
-                </form>
-            {% else %}
-                <span><span class="badge badge-secondary">{{ 'Core card'|xlt }}</span> {{ 'OpenEMR\'s built-in Demographics card is in use.'|xlt }}</span>
-            {% endif %}
-        </div>
+    <form method="post" id="activate-form" class="mb-3">
+        <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
+        <input type="hidden" name="action" value="activate">
+        <input type="hidden" name="template_name" value="{{ selected|attr }}">
         {% if templates is empty %}
-            <div class="card-body py-2 text-muted">{{ 'No templates yet. Edit the starter below and save it as a new template.'|xlt }}</div>
+            <p class="text-muted mb-0">{{ 'No templates yet. Edit the starter below and save it as a new template.'|xlt }}</p>
         {% else %}
-            <table class="table table-sm mb-0">
-                <thead><tr><th>{{ 'Name'|xlt }}</th><th>{{ 'Published version'|xlt }}</th><th>{{ 'Draft'|xlt }}</th><th>{{ 'Dashboard'|xlt }}</th></tr></thead>
+            <table class="table table-sm table-bordered w-auto mb-1">
+                <thead class="thead-light">
+                    <tr><th>{{ 'Active'|xlt }}</th><th>{{ 'Name'|xlt }}</th><th>{{ 'Published version'|xlt }}</th><th>{{ 'Draft'|xlt }}</th></tr>
+                </thead>
                 <tbody>
                 {% for template in templates %}
                     <tr{% if template.name == selected %} class="table-active"{% endif %}>
+                        <td class="text-center">
+                            <input type="checkbox" class="js-active-template" value="{{ template.name|attr }}"
+                                aria-label="{{ 'Active'|xla }}: {{ template.name|attr }}"
+                                {% if template.active %} checked{% endif %}
+                                {% if not template.published %} disabled title="{{ 'Publish the template before making it active.'|xla }}"{% endif %}>
+                        </td>
                         <td>
                             <a href="?template={{ template.name|url_encode|attr }}">{{ template.name|text }}</a>
                             {% if template.name == selected %}<span class="text-muted small">({{ 'editing'|xlt }})</span>{% endif %}
@@ -71,34 +82,42 @@
                                 <span class="badge badge-warning">{{ 'Unpublished draft'|xlt }}</span> #{{ template.draft.id|text }}
                             {% endif %}
                         </td>
-                        <td>
-                            {% if template.active %}
-                                <span class="badge badge-success">{{ 'Active'|xlt }}</span>
-                            {% elseif template.published %}
-                                <form method="post" class="mb-0">
-                                    <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
-                                    <input type="hidden" name="template_name" value="{{ template.name|attr }}">
-                                    <button type="submit" name="action" value="activate" class="btn btn-sm btn-outline-primary">{{ 'Make active'|xlt }}</button>
-                                </form>
-                            {% endif %}
-                        </td>
                     </tr>
                 {% endfor %}
                 </tbody>
             </table>
+            <small class="text-muted">
+                {% if activeName %}
+                    {{ 'The dashboard shows the checked template. Uncheck it to use the core card.'|xlt }}
+                {% else %}
+                    {{ 'No template is checked, so the dashboard shows the core Demographics card.'|xlt }}
+                {% endif %}
+            </small>
         {% endif %}
-    </div>
+    </form>
 
     <div class="row">
+        <div class="col-lg-6 mb-3">
+            <div class="font-weight-bold mb-1">{{ 'Preview'|xlt }}</div>
+            {% if previewDocument %}
+                <div class="embed-responsive embed-responsive-4by3 border rounded bg-white">
+                    {# allow-same-origin only so the theme stylesheet loads; without allow-scripts no script can run, and the page's own CSP blocks scripts too. #}
+                    <iframe sandbox="allow-same-origin" title="{{ 'Template preview'|xla }}" class="embed-responsive-item" srcdoc="{{ previewDocument|attr }}"></iframe>
+                </div>
+            {% else %}
+                <div class="border rounded p-3 text-muted">{{ 'Fix the problems on the right to see a preview.'|xlt }}</div>
+            {% endif %}
+        </div>
+
         <div class="col-lg-6 mb-3">
             <form method="post" id="template-form">
                 <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
                 <input type="hidden" name="draft_id" value="{{ draft ? draft.id|attr : '' }}">
                 <input type="hidden" name="template_name" value="{{ selected|attr }}">
-                <label for="source" class="font-weight-bold">
+                <label for="source" class="font-weight-bold mb-1">
                     {% if selected %}{{ 'Editing'|xlt }}: {{ selected|text }}{% else %}{{ 'New template'|xlt }}{% endif %}
                 </label>
-                <textarea id="source" name="source" class="form-control text-monospace small" rows="28" spellcheck="false">{{ source|text }}</textarea>
+                <textarea id="source" name="source" class="form-control text-monospace small" rows="24" spellcheck="false">{{ source|text }}</textarea>
 
                 <div class="mt-2">
                     <button type="submit" name="action" value="check" class="btn btn-secondary">{{ 'Check and preview'|xlt }}</button>
@@ -118,14 +137,9 @@
                 </div>
             </form>
 
-            <div class="mt-3">
+            <div class="mt-2">
                 {% if issues is empty %}
-                    <div class="alert alert-success py-2 mb-0">
-                        {{ 'Check passed.'|xlt }}
-                        {% if usedFields is not empty %}
-                            {{ 'Fields used'|xlt }}: <code>{{ usedFields|join(', ')|text }}</code>
-                        {% endif %}
-                    </div>
+                    <div class="alert alert-success py-2 mb-0">{{ 'Check passed.'|xlt }}</div>
                 {% else %}
                     <div class="alert alert-danger py-2 mb-0">
                         <strong>{{ 'Check found problems'|xlt }}:</strong>
@@ -138,19 +152,11 @@
                 {% endif %}
             </div>
         </div>
+    </div>
 
+    <div class="row">
         <div class="col-lg-6 mb-3">
-            <div class="font-weight-bold mb-1">{{ 'Preview with made-up data'|xlt }}</div>
-            {% if previewDocument %}
-                <div class="embed-responsive embed-responsive-4by3 border rounded bg-white">
-                    {# allow-same-origin only so the theme stylesheet loads; without allow-scripts no script can run, and the page's own CSP blocks scripts too. #}
-                    <iframe sandbox="allow-same-origin" title="{{ 'Template preview'|xla }}" class="embed-responsive-item" srcdoc="{{ previewDocument|attr }}"></iframe>
-                </div>
-            {% else %}
-                <div class="border rounded p-3 text-muted">{{ 'Fix the problems on the left to see a preview.'|xlt }}</div>
-            {% endif %}
-
-            <div class="font-weight-bold mt-3 mb-1">{{ 'Fields a template may use'|xlt }} <span class="text-muted font-weight-normal">({{ 'dataset version'|xlt }} {{ datasetVersion|text }})</span></div>
+            <div class="font-weight-bold mb-1">{{ 'Available Fields'|xlt }} <span class="text-muted font-weight-normal">({{ 'dataset version'|xlt }} {{ datasetVersion|text }})</span></div>
             <table class="table table-sm table-striped small mb-0">
                 <thead><tr><th>{{ 'Field'|xlt }}</th><th>{{ 'Meaning'|xlt }}</th><th>{{ 'Type'|xlt }}</th><th>{{ 'Example'|xlt }}</th></tr></thead>
                 <tbody>
@@ -165,7 +171,37 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="col-lg-6 mb-3">
+            <div class="font-weight-bold mb-1">{{ 'Fields used'|xlt }}</div>
+            {% if usedFields is empty %}
+                <p class="text-muted small mb-0">{{ 'None yet.'|xlt }}</p>
+            {% else %}
+                <ul class="list-unstyled small mb-0">
+                    {% for field in usedFields %}
+                        <li><code>{{ rootName|text }}.{{ field|text }}</code></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
     </div>
 </div>
+<script>
+    // At most one Active box is checked: checking one makes it the active
+    // template, unchecking it goes back to the core card.
+    document.querySelectorAll('.js-active-template').forEach(function (box) {
+        box.addEventListener('change', function () {
+            var form = document.getElementById('activate-form');
+            document.querySelectorAll('.js-active-template').forEach(function (other) {
+                if (other !== box) {
+                    other.checked = false;
+                }
+            });
+            form.elements.action.value = box.checked ? 'activate' : 'revert';
+            form.elements.template_name.value = box.value;
+            form.submit();
+        });
+    });
+</script>
 </body>
 </html>
