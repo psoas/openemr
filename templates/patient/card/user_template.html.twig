@@ -1,0 +1,18 @@
+{#
+  Frame for a dashboard card whose body comes from an admin-uploaded template.
+  userTemplateHtml was rendered by OpenEMR\UserTemplates\SandboxedTemplateRenderer,
+  which escapes every value as HTML, so it is printed as is here.
+
+  @package   OpenEMR
+  @link      https://www.open-emr.org
+  @author    David Eschelbacher
+  @copyright Copyright (c) 2026 David Eschelbacher
+  @license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
+#}
+{% extends "patient/card/card_base.html.twig" %}
+
+{% block content %}
+<div class="oe-user-template" data-user-template-id="{{ userTemplateId|attr }}">
+    {{ userTemplateHtml }}
+</div>
+{% endblock %}

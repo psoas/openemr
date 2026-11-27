@@ -1,0 +1,244 @@
+{#
+  Dashboard template manager. Rendered by
+  OpenEMR\Controllers\Interface\Super\UserTemplateManagerController.
+
+  Top: the template type and the saved templates, with an Active checkbox
+  each (at most one checked; none means the core card). Left: the preview
+  (rendered in the sandbox with made-up data, in a frame that allows no
+  scripts) and the available fields, with a Used checkbox for each field
+  the template reads. Right: Edit, with the check result on the same line,
+  then the buttons (Check, Save draft, Publish, Save as new template), any
+  problems, and the editor for the selected template.
+  Autoescape is off in OpenEMR, so every value goes through |text, |attr or
+  a translation filter.
+
+  @package   OpenEMR
+  @link      https://www.open-emr.org
+  @author    David Eschelbacher
+  @copyright Copyright (c) 2026 David Eschelbacher
+  @license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
+#}
+<html>
+<head>
+    <title>{{ 'Template Manager'|xlt }}</title>
+    {{ setupHeader([], false) }}
+    <style>
+        /* The check result sits a fixed distance after the Edit label. */
+        .user-templates-check-status { margin-left: 20em; }
+        /* Used boxes only show what the template reads; dark so they are easy to see, not clickable. */
+        .user-templates-used-box { accent-color: var(--dark); pointer-events: none; }
+    </style>
+</head>
+<body class="body_top">
+<div class="container-fluid mt-3">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <form method="get" class="form-inline mb-0">
+            <label for="template_type" class="font-weight-bold mr-2">{{ 'Template Type'|xlt }}:</label>
+            <select id="template_type" name="type" class="form-control form-control-sm">
+                {% for type in templateTypes %}
+                    <option value="{{ type.value|attr }}"{% if type.value == templateType %} selected{% endif %}{% if not type.available %} disabled{% endif %}>{{ type.label|xlt }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <div class="alert alert-info py-1 px-2 mb-0 small">
+            <span class="badge badge-info">{{ 'Experimental'|xlt }}</span>
+            {{ 'Templates run in a sandbox: they can only show the available fields, and cannot run code, read files or query the database.'|xlt }}
+        </div>
+    </div>
+
+    {% if not featureEnabled %}
+        <div class="alert alert-warning">{{ 'Active templates are not shown yet: turn on "Enable Admin-Uploaded Dashboard Templates" in Administration > Globals > Appearance first.'|xlt }}</div>
+    {% endif %}
+    {% if message %}
+        <div class="alert alert-info">{{ message|text }}</div>
+    {% endif %}
+
+    <form method="post" id="activate-form" class="mb-3">
+        <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
+        <input type="hidden" name="action" value="activate">
+        <input type="hidden" name="template_name" value="{{ selected|attr }}">
+        {% if templates is empty %}
+            <p class="text-muted mb-0">{{ 'No templates yet. Edit the starter below and save it as a new template.'|xlt }}</p>
+        {% else %}
+            <table class="table table-sm table-bordered w-auto mb-1">
+                <thead class="thead-light">
+                    <tr><th>{{ 'Active'|xlt }}</th><th class="px-3">{{ 'Name'|xlt }}</th><th class="px-3">{{ 'Published version'|xlt }}</th><th class="px-3">{{ 'Draft'|xlt }}</th></tr>
+                </thead>
+                <tbody>
+                {% for template in templates %}
+                    <tr{% if template.name == selected %} class="table-active"{% endif %}>
+                        <td class="text-center">
+                            <input type="checkbox" class="js-active-template" value="{{ template.name|attr }}"
+                                aria-label="{{ 'Active'|xla }}: {{ template.name|attr }}"
+                                {% if template.active %} checked{% endif %}
+                                {% if not template.published %} disabled title="{{ 'Publish the template before making it active.'|xla }}"{% endif %}>
+                        </td>
+                        <td class="px-3">
+                            <a href="?template={{ template.name|url_encode|attr }}">{{ template.name|text }}</a>
+                            {% if template.name == selected %}<span class="text-muted small">({{ 'editing'|xlt }})</span>{% endif %}
+                        </td>
+                        <td class="px-3">
+                            {% if template.published %}
+                                #{{ template.published.id|text }}, {% if template.published.by %}{{ template.published.by|text }}{% else %}{{ 'Sample shipped with OpenEMR'|xlt }}{% endif %} {{ template.published.at|text }}
+                            {% else %}
+                                <span class="text-muted">{{ 'not published'|xlt }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-3">
+                            {% if template.draft %}
+                                <span class="badge badge-warning">{{ 'Unpublished draft'|xlt }}</span> #{{ template.draft.id|text }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <small class="text-muted">
+                {% if activeName %}
+                    {{ 'The dashboard shows the checked template. Uncheck it to use the core card.'|xlt }}
+                {% else %}
+                    {{ 'No template is checked, so the dashboard shows the core Demographics card.'|xlt }}
+                {% endif %}
+            </small>
+        {% endif %}
+    </form>
+
+    <div class="font-weight-bold mb-3">{{ 'Name of Template'|xlt }}: {% if selected %}{{ selected|text }}{% else %}<span class="text-muted">{{ 'new, not saved yet'|xlt }}</span>{% endif %}</div>
+
+    <div class="row">
+        <div class="col-lg-6 mb-3">
+            <div class="font-weight-bold mb-1">{{ 'Preview'|xlt }}</div>
+            {% if previewDocument %}
+                <div class="embed-responsive embed-responsive-4by3 border rounded bg-white">
+                    {# allow-same-origin only so the theme stylesheet loads; without allow-scripts no script can run, and the page's own CSP blocks scripts too. #}
+                    <iframe sandbox="allow-same-origin" title="{{ 'Template preview'|xla }}" class="embed-responsive-item" srcdoc="{{ previewDocument|attr }}"></iframe>
+                </div>
+            {% else %}
+                <div class="border rounded p-3 text-muted">{{ 'Fix the problems on the right to see a preview.'|xlt }}</div>
+            {% endif %}
+
+            <div class="font-weight-bold mt-3 mb-1">{{ 'Available Fields'|xlt }} <span class="text-muted font-weight-normal">({{ 'dataset version'|xlt }} {{ datasetVersion|text }})</span></div>
+            <table class="table table-sm table-striped small mb-0">
+                <thead><tr><th class="text-center">{{ 'Used'|xlt }}</th><th>{{ 'Field'|xlt }}</th><th>{{ 'Meaning'|xlt }}</th><th>{{ 'Type'|xlt }}</th><th>{{ 'Example'|xlt }}</th></tr></thead>
+                <tbody>
+                {% for field in fields %}
+                    <tr>
+                        <td class="text-center">
+                            <input type="checkbox" class="user-templates-used-box" tabindex="-1" aria-readonly="true" aria-label="{{ 'Used'|xla }}: {{ field.name|attr }}"{% if field.used %} checked{% endif %}>
+                        </td>
+                        <td><code>{{ field.name|text }}</code></td>
+                        <td>{{ field.label|text }}</td>
+                        <td>{{ field.type|text }}</td>
+                        <td>{{ field.sample|text }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="col-lg-6 mb-3 d-flex flex-column">
+            {# The form and editor stretch so the editor ends level with the bottom of Available Fields. #}
+            <form method="post" id="template-form" class="d-flex flex-column flex-grow-1 mb-0">
+                <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
+                <input type="hidden" name="draft_id" value="{{ draft ? draft.id|attr : '' }}">
+                <input type="hidden" name="template_name" value="{{ selected|attr }}">
+                <div class="d-flex align-items-baseline mb-1">
+                    <label for="source" class="font-weight-bold mb-0">{{ 'Edit'|xlt }}</label>
+                    {% if issues is empty %}
+                        <span class="user-templates-check-status text-success font-weight-bold">{{ 'Check Passed.'|xlt }}</span>
+                    {% else %}
+                        <span class="user-templates-check-status text-danger font-weight-bold">{{ 'Check Found Problems'|xlt }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="mb-2">
+                    <button type="submit" name="action" value="check" class="btn btn-sm btn-secondary">{{ 'Check and preview'|xlt }}</button>
+                    {% if selected %}
+                        <button type="submit" name="action" value="save_draft" class="btn btn-sm btn-primary">{{ 'Save draft'|xlt }}</button>
+                    {% endif %}
+                    {# Upload and Download only move text between the editor and a file on this computer; nothing is saved until Save draft. #}
+                    <button type="button" class="btn btn-sm btn-outline-secondary js-template-upload">{{ 'Upload'|xlt }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary js-template-download" data-file-name="{{ (selected ?: 'template')|attr }}">{{ 'Download'|xlt }}</button>
+                    <input type="file" class="d-none js-template-file" accept=".twig,.html,.htm,.txt,text/html,text/plain" aria-label="{{ 'Template file to upload'|xla }}">
+                    {% if draft %}
+                        <button type="submit" name="action" value="publish" class="btn btn-sm btn-success">{{ 'Publish draft'|xlt }} #{{ draft.id|text }}</button>
+                    {% endif %}
+                </div>
+                <div class="input-group input-group-sm mb-2">
+                    <label class="sr-only" for="new_name">{{ 'New template name'|xlt }}</label>
+                    <input type="text" id="new_name" name="new_name" class="form-control" maxlength="100" placeholder="{{ 'New template name'|xla }}">
+                    <div class="input-group-append">
+                        <button type="submit" name="action" value="save_as_new" class="btn btn-outline-primary">{{ 'Save as new template'|xlt }}</button>
+                    </div>
+                </div>
+
+                {% if issues is not empty %}
+                    <div class="alert alert-danger py-2 mb-2 small">
+                        <ul class="mb-0 pl-3">
+                            {% for issue in issues %}
+                                <li>{% if issue.line is not null %}{{ 'Line'|xlt }} {{ issue.line|text }}: {% endif %}{{ issue.message|text }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <textarea id="source" name="source" class="form-control text-monospace small flex-grow-1" rows="30" spellcheck="false">{{ source|text }}</textarea>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    // At most one Active box is checked: checking one makes it the active
+    // template, unchecking it goes back to the core card.
+    document.querySelectorAll('.js-active-template').forEach(function (box) {
+        box.addEventListener('change', function () {
+            var form = document.getElementById('activate-form');
+            document.querySelectorAll('.js-active-template').forEach(function (other) {
+                if (other !== box) {
+                    other.checked = false;
+                }
+            });
+            form.elements.action.value = box.checked ? 'activate' : 'revert';
+            form.elements.template_name.value = box.value;
+            form.submit();
+        });
+    });
+
+    // Upload puts a file's text in the editor (Check and preview, then Save
+    // draft, to keep it); Download saves the editor's text as a file.
+    (function () {
+        var source = document.getElementById('source');
+        var fileInput = document.querySelector('.js-template-file');
+        var downloadButton = document.querySelector('.js-template-download');
+
+        document.querySelector('.js-template-upload').addEventListener('click', function () {
+            fileInput.value = '';
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', function () {
+            var file = fileInput.files[0];
+            if (!file) {
+                return;
+            }
+            file.text().then(function (text) {
+                source.value = text;
+                source.focus();
+            });
+        });
+
+        downloadButton.addEventListener('click', function () {
+            var base = downloadButton.dataset.fileName.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'template';
+            var url = URL.createObjectURL(new Blob([source.value], {type: 'text/plain'}));
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = base.toLowerCase() + '.html.twig';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        });
+    })();
+</script>
+</body>
+</html>

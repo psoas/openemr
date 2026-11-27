@@ -209,6 +209,13 @@ $GLOBALS_METADATA = [
             xl('Adds the patient name to the end of the window title.')
         ],
 
+        'enable_user_templates' => [
+            xl('Enable Admin-Uploaded Dashboard Templates (Experimental)'),
+            'bool',                           // data type
+            '0',                              // default = false
+            xl('Lets administrators replace dashboard cards with sandboxed Twig templates from Administration > Forms > Template Manager.')
+        ],
+
         'enable_compact_mode' => [
             xl('Enable Compact Mode'),
             'bool',                           // data type
