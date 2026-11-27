@@ -5,9 +5,10 @@
   Top: the template type and the saved templates, with an Active checkbox
   each (at most one checked; none means the core card). Left: the preview
   (rendered in the sandbox with made-up data, in a frame that allows no
-  scripts) and the available fields. Right: the editor for the selected
-  template with Check, Save draft, Publish and Save as new template, the
-  check result and the fields the template uses.
+  scripts) and the available fields, with a Used checkbox for each field
+  the template reads. Right: Edit, with the check result on the same line,
+  then the buttons (Check, Save draft, Publish, Save as new template), any
+  problems, and the editor for the selected template.
   Autoescape is off in OpenEMR, so every value goes through |text, |attr or
   a translation filter.
 
@@ -55,7 +56,7 @@
         {% else %}
             <table class="table table-sm table-bordered w-auto mb-1">
                 <thead class="thead-light">
-                    <tr><th>{{ 'Active'|xlt }}</th><th>{{ 'Name'|xlt }}</th><th>{{ 'Published version'|xlt }}</th><th>{{ 'Draft'|xlt }}</th></tr>
+                    <tr><th>{{ 'Active'|xlt }}</th><th class="px-3">{{ 'Name'|xlt }}</th><th class="px-3">{{ 'Published version'|xlt }}</th><th class="px-3">{{ 'Draft'|xlt }}</th></tr>
                 </thead>
                 <tbody>
                 {% for template in templates %}
@@ -66,18 +67,18 @@
                                 {% if template.active %} checked{% endif %}
                                 {% if not template.published %} disabled title="{{ 'Publish the template before making it active.'|xla }}"{% endif %}>
                         </td>
-                        <td>
+                        <td class="px-3">
                             <a href="?template={{ template.name|url_encode|attr }}">{{ template.name|text }}</a>
                             {% if template.name == selected %}<span class="text-muted small">({{ 'editing'|xlt }})</span>{% endif %}
                         </td>
-                        <td>
+                        <td class="px-3">
                             {% if template.published %}
                                 #{{ template.published.id|text }}, {{ template.published.by|text }} {{ template.published.at|text }}
                             {% else %}
                                 <span class="text-muted">{{ 'not published'|xlt }}</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="px-3">
                             {% if template.draft %}
                                 <span class="badge badge-warning">{{ 'Unpublished draft'|xlt }}</span> #{{ template.draft.id|text }}
                             {% endif %}
@@ -96,6 +97,8 @@
         {% endif %}
     </form>
 
+    <h3 class="h5 mb-3">{{ 'Name of Template'|xlt }}: {% if selected %}{{ selected|text }}{% else %}<span class="text-muted">{{ 'new, not saved yet'|xlt }}</span>{% endif %}</h3>
+
     <div class="row">
         <div class="col-lg-6 mb-3">
             <div class="font-weight-bold mb-1">{{ 'Preview'|xlt }}</div>
@@ -107,61 +110,16 @@
             {% else %}
                 <div class="border rounded p-3 text-muted">{{ 'Fix the problems on the right to see a preview.'|xlt }}</div>
             {% endif %}
-        </div>
 
-        <div class="col-lg-6 mb-3">
-            <form method="post" id="template-form">
-                <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
-                <input type="hidden" name="draft_id" value="{{ draft ? draft.id|attr : '' }}">
-                <input type="hidden" name="template_name" value="{{ selected|attr }}">
-                <label for="source" class="font-weight-bold mb-1">
-                    {% if selected %}{{ 'Editing'|xlt }}: {{ selected|text }}{% else %}{{ 'New template'|xlt }}{% endif %}
-                </label>
-                <textarea id="source" name="source" class="form-control text-monospace small" rows="24" spellcheck="false">{{ source|text }}</textarea>
-
-                <div class="mt-2">
-                    <button type="submit" name="action" value="check" class="btn btn-secondary">{{ 'Check and preview'|xlt }}</button>
-                    {% if selected %}
-                        <button type="submit" name="action" value="save_draft" class="btn btn-primary">{{ 'Save draft'|xlt }}</button>
-                    {% endif %}
-                    {% if draft %}
-                        <button type="submit" name="action" value="publish" class="btn btn-success">{{ 'Publish draft'|xlt }} #{{ draft.id|text }}</button>
-                    {% endif %}
-                </div>
-                <div class="input-group input-group-sm mt-2">
-                    <label class="sr-only" for="new_name">{{ 'New template name'|xlt }}</label>
-                    <input type="text" id="new_name" name="new_name" class="form-control" maxlength="100" placeholder="{{ 'New template name'|xla }}">
-                    <div class="input-group-append">
-                        <button type="submit" name="action" value="save_as_new" class="btn btn-outline-primary">{{ 'Save as new template'|xlt }}</button>
-                    </div>
-                </div>
-            </form>
-
-            <div class="mt-2">
-                {% if issues is empty %}
-                    <div class="alert alert-success py-2 mb-0">{{ 'Check passed.'|xlt }}</div>
-                {% else %}
-                    <div class="alert alert-danger py-2 mb-0">
-                        <strong>{{ 'Check found problems'|xlt }}:</strong>
-                        <ul class="mb-0">
-                            {% for issue in issues %}
-                                <li>{% if issue.line is not null %}{{ 'Line'|xlt }} {{ issue.line|text }}: {% endif %}{{ issue.message|text }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-lg-6 mb-3">
-            <div class="font-weight-bold mb-1">{{ 'Available Fields'|xlt }} <span class="text-muted font-weight-normal">({{ 'dataset version'|xlt }} {{ datasetVersion|text }})</span></div>
+            <div class="font-weight-bold mt-3 mb-1">{{ 'Available Fields'|xlt }} <span class="text-muted font-weight-normal">({{ 'dataset version'|xlt }} {{ datasetVersion|text }})</span></div>
             <table class="table table-sm table-striped small mb-0">
-                <thead><tr><th>{{ 'Field'|xlt }}</th><th>{{ 'Meaning'|xlt }}</th><th>{{ 'Type'|xlt }}</th><th>{{ 'Example'|xlt }}</th></tr></thead>
+                <thead><tr><th class="text-center">{{ 'Used'|xlt }}</th><th>{{ 'Field'|xlt }}</th><th>{{ 'Meaning'|xlt }}</th><th>{{ 'Type'|xlt }}</th><th>{{ 'Example'|xlt }}</th></tr></thead>
                 <tbody>
                 {% for field in fields %}
                     <tr>
+                        <td class="text-center">
+                            <input type="checkbox" disabled aria-label="{{ 'Used'|xla }}: {{ field.name|attr }}"{% if field.used %} checked{% endif %}>
+                        </td>
                         <td><code>{{ field.name|text }}</code></td>
                         <td>{{ field.label|text }}</td>
                         <td>{{ field.type|text }}</td>
@@ -173,16 +131,48 @@
         </div>
 
         <div class="col-lg-6 mb-3">
-            <div class="font-weight-bold mb-1">{{ 'Fields used'|xlt }}</div>
-            {% if usedFields is empty %}
-                <p class="text-muted small mb-0">{{ 'None yet.'|xlt }}</p>
-            {% else %}
-                <ul class="list-unstyled small mb-0">
-                    {% for field in usedFields %}
-                        <li><code>{{ rootName|text }}.{{ field|text }}</code></li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
+            <form method="post" id="template-form">
+                <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
+                <input type="hidden" name="draft_id" value="{{ draft ? draft.id|attr : '' }}">
+                <input type="hidden" name="template_name" value="{{ selected|attr }}">
+                <div class="d-flex justify-content-between align-items-baseline mb-1">
+                    <label for="source" class="font-weight-bold mb-0">{{ 'Edit'|xlt }}</label>
+                    {% if issues is empty %}
+                        <span class="text-success small font-weight-bold">{{ 'Check passed.'|xlt }}</span>
+                    {% else %}
+                        <span class="text-danger small font-weight-bold">{{ 'Check found problems'|xlt }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="mb-2">
+                    <button type="submit" name="action" value="check" class="btn btn-sm btn-secondary">{{ 'Check and preview'|xlt }}</button>
+                    {% if selected %}
+                        <button type="submit" name="action" value="save_draft" class="btn btn-sm btn-primary">{{ 'Save draft'|xlt }}</button>
+                    {% endif %}
+                    {% if draft %}
+                        <button type="submit" name="action" value="publish" class="btn btn-sm btn-success">{{ 'Publish draft'|xlt }} #{{ draft.id|text }}</button>
+                    {% endif %}
+                </div>
+                <div class="input-group input-group-sm mb-2">
+                    <label class="sr-only" for="new_name">{{ 'New template name'|xlt }}</label>
+                    <input type="text" id="new_name" name="new_name" class="form-control" maxlength="100" placeholder="{{ 'New template name'|xla }}">
+                    <div class="input-group-append">
+                        <button type="submit" name="action" value="save_as_new" class="btn btn-outline-primary">{{ 'Save as new template'|xlt }}</button>
+                    </div>
+                </div>
+
+                {% if issues is not empty %}
+                    <div class="alert alert-danger py-2 mb-2 small">
+                        <ul class="mb-0 pl-3">
+                            {% for issue in issues %}
+                                <li>{% if issue.line is not null %}{{ 'Line'|xlt }} {{ issue.line|text }}: {% endif %}{{ issue.message|text }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <textarea id="source" name="source" class="form-control text-monospace small" rows="30" spellcheck="false">{{ source|text }}</textarea>
+            </form>
         </div>
     </div>
 </div>

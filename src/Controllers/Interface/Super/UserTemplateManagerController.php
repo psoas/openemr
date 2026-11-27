@@ -146,7 +146,6 @@ final readonly class UserTemplateManagerController
                 'slot' => self::SLOT,
                 'templateTypes' => self::TEMPLATE_TYPES,
                 'templateType' => self::SLOT,
-                'rootName' => $this->dataset->rootName(),
                 'templates' => $templates,
                 'activeName' => $active?->name,
                 'selected' => $selected,
@@ -158,9 +157,9 @@ final readonly class UserTemplateManagerController
                     static fn($issue): array => ['message' => $issue->message, 'line' => $issue->line],
                     $scan->issues
                 ),
-                'usedFields' => $scan->usedFields,
                 'fields' => array_map(
                     fn($field): array => [
+                        'used' => in_array($field->name, $scan->usedFields, true),
                         'name' => $this->dataset->rootName() . '.' . $field->name,
                         'label' => $field->label,
                         'type' => $field->type->name,
