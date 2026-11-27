@@ -22,6 +22,12 @@
 <head>
     <title>{{ 'Dashboard Templates'|xlt }}</title>
     {{ setupHeader([], false) }}
+    <style>
+        /* The check result sits a fixed distance after the Edit label. */
+        .user-templates-check-status { margin-left: 20em; }
+        /* Used boxes only show what the template reads; dark so they are easy to see, not clickable. */
+        .user-templates-used-box { accent-color: var(--dark); pointer-events: none; }
+    </style>
 </head>
 <body class="body_top">
 <div class="container-fluid mt-3">
@@ -97,7 +103,7 @@
         {% endif %}
     </form>
 
-    <h3 class="h5 mb-3">{{ 'Name of Template'|xlt }}: {% if selected %}{{ selected|text }}{% else %}<span class="text-muted">{{ 'new, not saved yet'|xlt }}</span>{% endif %}</h3>
+    <div class="font-weight-bold mb-3">{{ 'Name of Template'|xlt }}: {% if selected %}{{ selected|text }}{% else %}<span class="text-muted">{{ 'new, not saved yet'|xlt }}</span>{% endif %}</div>
 
     <div class="row">
         <div class="col-lg-6 mb-3">
@@ -118,7 +124,7 @@
                 {% for field in fields %}
                     <tr>
                         <td class="text-center">
-                            <input type="checkbox" disabled aria-label="{{ 'Used'|xla }}: {{ field.name|attr }}"{% if field.used %} checked{% endif %}>
+                            <input type="checkbox" class="user-templates-used-box" tabindex="-1" aria-readonly="true" aria-label="{{ 'Used'|xla }}: {{ field.name|attr }}"{% if field.used %} checked{% endif %}>
                         </td>
                         <td><code>{{ field.name|text }}</code></td>
                         <td>{{ field.label|text }}</td>
@@ -135,12 +141,12 @@
                 <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
                 <input type="hidden" name="draft_id" value="{{ draft ? draft.id|attr : '' }}">
                 <input type="hidden" name="template_name" value="{{ selected|attr }}">
-                <div class="d-flex justify-content-between align-items-baseline mb-1">
+                <div class="d-flex align-items-baseline mb-1">
                     <label for="source" class="font-weight-bold mb-0">{{ 'Edit'|xlt }}</label>
                     {% if issues is empty %}
-                        <span class="text-success small font-weight-bold">{{ 'Check passed.'|xlt }}</span>
+                        <span class="user-templates-check-status text-success font-weight-bold">{{ 'Check Passed.'|xlt }}</span>
                     {% else %}
-                        <span class="text-danger small font-weight-bold">{{ 'Check found problems'|xlt }}</span>
+                        <span class="user-templates-check-status text-danger font-weight-bold">{{ 'Check Found Problems'|xlt }}</span>
                     {% endif %}
                 </div>
 
