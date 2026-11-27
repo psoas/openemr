@@ -79,7 +79,7 @@
                         </td>
                         <td class="px-3">
                             {% if template.published %}
-                                #{{ template.published.id|text }}, {{ template.published.by|text }} {{ template.published.at|text }}
+                                #{{ template.published.id|text }}, {% if template.published.by %}{{ template.published.by|text }}{% else %}{{ 'Sample shipped with OpenEMR'|xlt }}{% endif %} {{ template.published.at|text }}
                             {% else %}
                                 <span class="text-muted">{{ 'not published'|xlt }}</span>
                             {% endif %}
