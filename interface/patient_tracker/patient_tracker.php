@@ -720,6 +720,7 @@ function myLocalJS(SessionInterface $session): void
                         drawTable(data)
                     }
                 });
+            return posting;
         }
 
         function drawTable(data) {

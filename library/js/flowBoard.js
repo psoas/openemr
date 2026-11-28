@@ -113,7 +113,7 @@ function flowBoardRedrawChoice(select) {
     }
 
     // The badge is disabled until its save is done, so a second choice can't race the first.
-    function save(badge, kind, value) {
+    function save(badge, kind, value, title) {
         var settings = config();
         var body = new URLSearchParams();
         body.set('flb_change', '1');
@@ -129,12 +129,20 @@ function flowBoardRedrawChoice(select) {
                 if (!response.ok) {
                     throw new Error('Flow Board change failed: ' + response.status);
                 }
+                // The badge shows what was saved even if the redraw below fails.
                 badge.setAttribute('data-flb-value', value);
+                badge.textContent = value === '' ? '\u2013' : title;
                 badge.disabled = false;
-                if (typeof window.refreshMe === 'function') {
-                    // As the board's timer does: the new table replaces the old in place,
-                    // with no blank table and loading spinner.
-                    window.refreshMe(true);
+                if (typeof window.refreshMe !== 'function') {
+                    return;
+                }
+                // As the board's timer does: the new table replaces the old in place,
+                // with no blank table and loading spinner.
+                var redraw = window.refreshMe(true);
+                if (redraw && typeof redraw.fail === 'function') {
+                    redraw.fail(function () {
+                        window.alert(settings.text.redrawFailed);
+                    });
                 }
             })
             .catch(function () {
@@ -162,7 +170,7 @@ function flowBoardRedrawChoice(select) {
             item.addEventListener('click', function () {
                 closeMenu(true);
                 if (String(option.id) !== current) {
-                    save(badge, kind, String(option.id));
+                    save(badge, kind, String(option.id), option.title);
                 }
             });
             menu.appendChild(item);

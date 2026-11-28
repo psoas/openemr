@@ -126,7 +126,7 @@ describe('menus and clicks', () => {
                 status: [{ id: '-', title: 'None' }, { id: '@', title: 'Arrived' }],
                 room: [{ id: '', title: 'No room' }, { id: 1, title: 'Room 1' }],
             },
-            text: { menuLabel: { status: 'Change status', room: 'Change room' }, failed: 'Not saved.' },
+            text: { menuLabel: { status: 'Change status', room: 'Change room' }, failed: 'Not saved.', redrawFailed: 'Saved; reload.' },
         };
         window.refreshMe = jest.fn();
         window.calendarpopup = jest.fn();
@@ -178,6 +178,19 @@ describe('menus and clicks', () => {
         expect(window.refreshMe).toHaveBeenCalledWith(true);
         expect(items()).toEqual([]);
         expect(badge('room').getAttribute('data-flb-value')).toBe('1');
+        expect(badge('room').textContent).toBe('Room 1');
+        expect(window.alert).not.toHaveBeenCalled();
+    });
+
+    test('a saved change whose redraw fails keeps the new label and says to reload', async () => {
+        window.refreshMe = jest.fn(() => ({ fail: (handler) => handler() }));
+        badge('status').click();
+        items()[1].click();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(badge('status').textContent).toBe('Arrived');
+        expect(badge('status').getAttribute('data-flb-value')).toBe('@');
+        expect(window.alert).toHaveBeenCalledWith('Saved; reload.');
     });
 
     test('a badge is disabled while its save is pending, and enabled again after', async () => {
