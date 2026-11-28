@@ -2,7 +2,8 @@
    (library/js/flowBoard.js), with what they need from the server.
 
    Input: statuses and rooms (list of {id, title}, titles untranslated), dateFormat (the
-   date_display_format setting: 0 Y-m-d, 1 m/d/Y, 2 d/m/Y)
+   date_display_format setting: 0 Y-m-d, 1 m/d/Y, 2 d/m/Y), today (Y-m-d), firstDayOfWeek
+   (the first_day_week setting: 0 Sunday, 1 Monday, 6 Saturday)
 
    @package   OpenEMR
    @link      https://www.open-emr.org
@@ -14,6 +15,8 @@
         url: {{ (webroot ~ '/interface/patient_tracker/patient_tracker.php')|js_escape }},
         csrfToken: {{ csrfTokenRaw()|js_escape }},
         dateFormat: {{ dateFormat|js_escape }},
+        today: {{ today|js_escape }},
+        firstDayOfWeek: {{ firstDayOfWeek|js_escape }},
         menus: {
             status: [{% for option in statuses %}{id: {{ option.id|js_escape }}, title: {{ option.title|xlListLabel|js_escape }}}{{ loop.last ? '' : ',' }}{% endfor %}],
             room: [{id: '', title: {{ 'No room'|xlj }}}{% for option in rooms %}, {id: {{ option.id|js_escape }}, title: {{ option.title|xlListLabel|js_escape }}}{% endfor %}]
@@ -21,7 +24,11 @@
         text: {
             menuLabel: {status: {{ 'Change status'|xlj }}, room: {{ 'Change room'|xlj }}},
             failed: {{ 'The change could not be saved.'|xlj }},
-            redrawFailed: {{ 'The change was saved, but the board could not be refreshed. Reload it to see the change.'|xlj }}
+            redrawFailed: {{ 'The change was saved, but the board could not be refreshed. Reload it to see the change.'|xlj }},
+            close: {{ 'Close'|xlj }},
+            noneMatch: {{ 'No appointments match these filters.'|xlj }},
+            noneForDates: {{ 'No appointments for these dates.'|xlj }},
+            clearFilters: {{ 'Clear filters'|xlj }}
         }
     };
 </script>

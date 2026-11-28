@@ -291,12 +291,13 @@ if (!($_REQUEST['flb_table'] ?? null)) {
                         <i id="print_caret" class='fa fa-caret-<?php echo $caret = ($setting_selectors == 'none') ? 'down' : 'up'; ?> fa-stack-1x'></i>
                     </span>
 
-                    <a class="btn btn-primary btn-setting" data-toggle="collapse" href="#collapseSetting">
+                    <span class="flb-updated small text-muted mr-2"><?php echo xlt('Updated') . ' ' . text(oeFormatTime(date('H:i'))); ?></span>
+                    <a class="btn btn-primary btn-sm flb-tool btn-setting" data-toggle="collapse" href="#collapseSetting">
                         <?php echo xlt('Setting'); ?>
                     </a>
-                    <a class='btn btn-primary btn-refresh' id='refreshme'><?php echo xlt('Refresh'); ?></a>
-                    <a class='btn btn-primary btn-print' onclick="print_FLB();"> <?php echo xlt('Print'); ?></a>
-                    <a class='btn btn-primary' onclick="kiosk_FLB();"> <?php echo xlt('Kiosk'); ?></a>
+                    <a class='btn btn-primary btn-sm flb-tool btn-refresh' id='refreshme'><?php echo xlt('Refresh'); ?></a>
+                    <a class='btn btn-primary btn-sm flb-tool btn-print' onclick="print_FLB();"> <?php echo xlt('Print'); ?></a>
+                    <a class='btn btn-primary btn-sm flb-tool' onclick="kiosk_FLB();"> <?php echo xlt('Kiosk'); ?></a>
                     <div class="collapse mt-2 mb-2" id="collapseSetting">
                         <input type='checkbox' name='setting_new_window' id='setting_new_window' value='<?php echo attr($setting_new_window); ?>' <?php echo attr($setting_new_window); ?> />
                         <?php echo xlt('Open Patient in New Window'); ?>
@@ -629,7 +630,7 @@ if (!($_REQUEST['flb_table'] ?? null)) { ?>
     </form>
 
     <?php myLocalJS($session); ?>
-    <?php echo ServiceContainer::getTwig()->render('patient_tracker/flow_board_script.html.twig', ['statuses' => ($flowBoardStore = new LegacyFlowBoardStore())->activeOptions(FlowBoardChange::STATUS_LIST), 'rooms' => $flowBoardStore->activeOptions(FlowBoardChange::ROOM_LIST), 'dateFormat' => OEGlobalsBag::getInstance()->getInt('date_display_format')]); ?>
+    <?php echo ServiceContainer::getTwig()->render('patient_tracker/flow_board_script.html.twig', ['statuses' => ($flowBoardStore = new LegacyFlowBoardStore())->activeOptions(FlowBoardChange::STATUS_LIST), 'rooms' => $flowBoardStore->activeOptions(FlowBoardChange::ROOM_LIST), 'dateFormat' => OEGlobalsBag::getInstance()->getInt('date_display_format'), 'today' => date('Y-m-d'), 'firstDayOfWeek' => OEGlobalsBag::getInstance()->getInt('first_day_week')]); ?>
 </body>
 </html>
     <?php
@@ -684,10 +685,14 @@ function myLocalJS(SessionInterface $session): void
 
         /**
          * This function refreshes the whole flb_table according to our to/from dates.
+         * inPlace: a change by the user; the table stays, dimmed, until the new one replaces it.
          */
-        function refreshMe(fromTimer) {
+        function refreshMe(fromTimer, inPlace) {
 
-            if (typeof fromTimer === 'undefined' || !fromTimer) {
+            if (inPlace) {
+                $("#flb_table").addClass('flb-loading');
+                skip_timeout_reset = 0;
+            } else if (typeof fromTimer === 'undefined' || !fromTimer) {
                 //Show loader in the first loading or manual loading not by timer
                 $("#flb_table").html('');
                 $('#loader').show();
@@ -714,11 +719,13 @@ function myLocalJS(SessionInterface $session): void
             }).done(
                 function (data) {
                     //minimum 400 ms of loader (In the first loading or manual loading not by timer)
-                    if((typeof fromTimer === 'undefined' || !fromTimer) && Date.now() - startRequestTime < 400 ){
+                    if(!inPlace && (typeof fromTimer === 'undefined' || !fromTimer) && Date.now() - startRequestTime < 400 ){
                         setTimeout(drawTable, 500, data);
                     } else {
                         drawTable(data)
                     }
+                }).fail(function () {
+                    $("#flb_table").removeClass('flb-loading');
                 });
             return posting;
         }
@@ -726,7 +733,7 @@ function myLocalJS(SessionInterface $session): void
         function drawTable(data) {
 
             $('#loader').hide();
-            $("#flb_table").html(data);
+            $("#flb_table").html(data).removeClass('flb-loading');
             if ($("#kiosk").val() === '') {
             $("[name='kiosk_hide']").show();
             $("[name='kiosk_show']").hide();
@@ -933,11 +940,6 @@ function myLocalJS(SessionInterface $session): void
                 }).done(
                     function (data) {
                 });
-            });
-
-            $('#filter_submit').click(function (e) {
-                e.preventDefault;
-                refreshMe();
             });
 
             $('[data-toggle="tooltip"]').tooltip();

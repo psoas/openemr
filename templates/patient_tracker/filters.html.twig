@@ -1,11 +1,12 @@
-{# The Flow Board's filter form. First row: From and To with the Filter button (which reloads
-   the board for those dates), then Patient ID and Patient Name. Second row: the visit
-   category, status, facility and provider menus; status and facility are as wide as their
-   content, category and provider have set widths, and a long choice ends in "…". The menus and
-   the patient boxes narrow the shown rows as they change (refineMe()).
+{# The Flow Board's filter form. First row: a menu of date ranges (Today, This week, ...) and
+   From and To, which reload the board when they change, then Patient ID and Patient Name.
+   Second row: the visit category, status, facility and provider menus and Clear filters;
+   status and facility are as wide as their content, category and provider have set widths,
+   and a long choice ends in "…". The menus and the patient boxes narrow the shown rows as they
+   change (refineMe()). Changes are handled in library/js/flowBoard.js.
 
    Input: filters (OpenEMR\Appointment\FlowBoard\FlowBoardFilters), dateRange (bool: the
-   ptkr_date_range setting; without it the dates and Filter are hidden), fromDate and toDate
+   ptkr_date_range setting; without it the dates are hidden), fromDate and toDate
    (formatted), patientName, patientId, kiosk, medex (bool: medex_enable), medexOnline (bool)
 
    @package   OpenEMR
@@ -18,11 +19,26 @@
     <input type="hidden" id="kiosk" name="kiosk" value="{{ kiosk|attr }}" />
     <div class="flb-filters">
         <div class="flb-filter-group flb-dates{% if not dateRange %} d-none{% endif %}">
+            <select id="flb_date_range" class="form-control form-control-sm w-auto" aria-label="{{ 'Date range'|xla }}">
+                <option value="">{{ 'Custom dates'|xlt }}</option>
+                <option value="today">{{ 'Today'|xlt }}</option>
+                <option value="yesterday">{{ 'Yesterday'|xlt }}</option>
+                <option value="tomorrow">{{ 'Tomorrow'|xlt }}</option>
+                <option value="dayBefore">{{ 'Day before'|xlt }}</option>
+                <option value="dayAfter">{{ 'Day after'|xlt }}</option>
+                <option value="thisWeek">{{ 'This week'|xlt }}</option>
+                <option value="lastWeek">{{ 'Last week'|xlt }}</option>
+                <option value="nextWeek">{{ 'Next week'|xlt }}</option>
+                <option value="last7">{{ 'Last 7 days'|xlt }}</option>
+                <option value="next7">{{ 'Next 7 days'|xlt }}</option>
+                <option value="thisMonth">{{ 'This month'|xlt }}</option>
+                <option value="lastMonth">{{ 'Last month'|xlt }}</option>
+                <option value="nextMonth">{{ 'Next month'|xlt }}</option>
+            </select>
             <label class="mb-0" for="form_from_date">{{ 'From'|xlt }}:</label>
             <input type="text" id="form_from_date" name="form_from_date" class="datepicker form-control form-control-sm w-auto text-center" size="10" value="{{ fromDate|attr }}" />
             <label class="mb-0" for="form_to_date">{{ 'To{{Range}}'|xlt }}:</label>
             <input type="text" id="form_to_date" name="form_to_date" class="datepicker form-control form-control-sm w-auto text-center" size="10" value="{{ toDate|attr }}" />
-            <button type="button" id="filter_submit" class="btn btn-primary btn-sm btn-filter">{{ 'Filter'|xlt }}</button>
         </div>
         <div class="flb-filter-group">
             <label class="mb-0" for="form_patient_id">{{ 'Patient ID'|xlt }}:</label>
@@ -62,6 +78,7 @@
             <option value="{{ option.id|attr }}"{% if option.id == filters.provider %} selected{% endif %}>{{ option.label|text }}</option>
             {% endfor %}
         </select>
+        <button type="button" id="flb_clear_filters" class="btn btn-secondary btn-sm flb-tool">{{ 'Clear filters'|xlt }}</button>
     </div>
     <div id="message" class="warning"></div>
 </form>

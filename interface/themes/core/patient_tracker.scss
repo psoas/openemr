@@ -1,8 +1,8 @@
 /**
  * Flow Board (interface/patient_tracker/patient_tracker.php)
  *
- * Short rows, one line tall where the content allows, names left-aligned, and the status
- * and room badges with their menus (library/js/flowBoard.js).
+ * Short rows, one line tall where the content allows, names left-aligned, a header that stays
+ * in view, and the status and room badges with their menus (library/js/flowBoard.js).
  *
  * @package   OpenEMR
  * @link      https://www.open-emr.org
@@ -25,6 +25,12 @@
     column-gap: 2rem;
     text-align: left;
 
+    // From, To, Patient ID and Patient Name, at the size of the text in the boxes.
+    label {
+      font-weight: bold;
+      font-size: 0.875rem;
+    }
+
     // A long choice shows in full in the open menu, and ends in "…" in the closed one.
     select {
       max-width: 20rem;
@@ -39,19 +45,9 @@
     }
   }
 
-  // From, To and Filter, set apart from the patient boxes.
+  // The date range menu, From and To, set apart from the patient boxes.
   .flb-dates {
     margin-right: 1.5rem;
-  }
-
-  // Filter: a little apart from the date, and as tall as the boxes beside it.
-  #filter_submit {
-    display: inline-flex;
-    align-items: center;
-    height: calc(1.5em + 0.5rem + 2px);
-    margin-left: 0.5rem;
-    padding-top: 0;
-    padding-bottom: 0;
   }
 
   #form_apptcat {
@@ -63,7 +59,28 @@
   }
 }
 
+// Clear filters, and Setting, Refresh, Print and Kiosk: as tall as the boxes and menus.
+.flb-tool {
+  display: inline-flex;
+  align-items: center;
+  height: calc(1.5em + 0.5rem + 2px);
+  padding-top: 0;
+  padding-bottom: 0;
+  vertical-align: middle;
+}
+
 #flb_table {
+  // The table scrolls within the window, so its header can stay in view.
+  .table-responsive {
+    max-height: calc(100vh - 1rem);
+    overflow-y: auto;
+  }
+
+  // While a change of dates or filters reloads the board.
+  &.flb-loading .table {
+    opacity: 0.6;
+  }
+
   .table {
     // The line under "Appointment" and under "Time", across the columns each heads.
     thead td.flb-group {
@@ -76,9 +93,19 @@
       padding-bottom: 0.1rem;
     }
 
+    // Both header rows stay at the top as the rows scroll under them.
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
     // Headings that span both header rows sit at the top, level with "Appointment" and "Time".
+    // The header's color is on thead; the cells take it, so rows don't show through them.
+    thead tr,
     thead td {
       vertical-align: top;
+      background-color: inherit;
     }
 
     // Row text at the size of the status and room badges.
@@ -94,6 +121,11 @@
     td.flb-comment {
       min-width: 12rem;
       white-space: normal;
+    }
+
+    // A row whose status or room changed since the last load, or that is new.
+    tr.flb-changed td {
+      animation: flb-changed 2.5s ease-out;
     }
 
     .flb-name {
@@ -121,12 +153,46 @@
     font-size: 100%;
     border-width: 0;
     cursor: pointer;
+
+    &:focus {
+      outline: none;
+    }
+
+    // Plain to see when reached by keyboard.
+    &:focus-visible {
+      outline: 2px solid var(--dark);
+      outline-offset: 2px;
+    }
   }
 
   // The title above the table: print only.
   .flb-print-title {
     display: none;
   }
+}
+
+@keyframes flb-changed {
+  from {
+    background-color: rgb(255 193 7 / 55%);
+  }
+
+  to {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #flb_table .table tr.flb-changed td {
+    animation: none;
+  }
+}
+
+.flb-toasts {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1070;
+  max-width: 22rem;
 }
 
 .flb-menu {
@@ -138,7 +204,8 @@
 @media print {
   // The table without the filters and buttons, narrow enough for the page.
   #flb_selectors .jumbotron,
-  #pull_kiosk_right {
+  #pull_kiosk_right,
+  .flb-toasts {
     display: none;
   }
 
@@ -151,7 +218,12 @@
     }
 
     .table-responsive {
+      max-height: none;
       overflow: visible;
+    }
+
+    .table thead {
+      position: static;
     }
 
     .table {

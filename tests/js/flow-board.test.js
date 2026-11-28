@@ -20,7 +20,8 @@ const path = require('path');
 
 const board = new Function(
     fs.readFileSync(path.resolve(__dirname, '../../library/js/flowBoard.js'), 'utf8') +
-    '\nreturn { flowBoardMarkRepeats, flowBoardDateKey, flowBoardKeepRange, flowBoardRedrawChoice };'
+    '\nreturn { flowBoardMarkRepeats, flowBoardDateKey, flowBoardKeepRange, flowBoardRedrawChoice,' +
+    ' flowBoardFormatDate, flowBoardDateRange, flowBoardMatchRange, flowBoardMarkChanges };'
 )();
 
 function row(date, time, hidden) {
@@ -130,7 +131,6 @@ describe('menus and clicks', () => {
         };
         window.refreshMe = jest.fn();
         window.calendarpopup = jest.fn();
-        window.alert = jest.fn();
         global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200 }));
         document.body.innerHTML = `<table id="flb_table"><tbody><tr>
             <td class="flb-appt" data-flb-eid="768" data-flb-date="20261130"><span class="flb-when">08:00</span></td>
@@ -140,12 +140,16 @@ describe('menus and clicks', () => {
     });
 
     afterEach(() => {
-        document.querySelectorAll('.flb-menu').forEach((menu) => menu.remove());
+        document.querySelectorAll('.flb-menu, .flb-toasts').forEach((element) => element.remove());
         document.body.click();
     });
 
     function badge(kind) {
         return document.querySelector(`[data-flb-choice="${kind}"]`);
+    }
+
+    function toasts() {
+        return [...document.querySelectorAll('.flb-toasts .toast-body span')].map((item) => item.textContent);
     }
 
     function items() {
@@ -179,7 +183,7 @@ describe('menus and clicks', () => {
         expect(items()).toEqual([]);
         expect(badge('room').getAttribute('data-flb-value')).toBe('1');
         expect(badge('room').textContent).toBe('Room 1');
-        expect(window.alert).not.toHaveBeenCalled();
+        expect(toasts()).toEqual([]);
     });
 
     test('a saved change whose redraw fails keeps the new label and says to reload', async () => {
@@ -190,7 +194,7 @@ describe('menus and clicks', () => {
 
         expect(badge('status').textContent).toBe('Arrived');
         expect(badge('status').getAttribute('data-flb-value')).toBe('@');
-        expect(window.alert).toHaveBeenCalledWith('Saved; reload.');
+        expect(toasts()).toEqual(['Saved; reload.']);
     });
 
     test('a badge is disabled while its save is pending, and enabled again after', async () => {
@@ -222,7 +226,7 @@ describe('menus and clicks', () => {
         items()[1].click();
         await new Promise((resolve) => setTimeout(resolve, 0));
 
-        expect(window.alert).toHaveBeenCalledWith('Not saved.');
+        expect(toasts()).toEqual(['Not saved.']);
         expect(window.refreshMe).not.toHaveBeenCalled();
         expect(badge('status').disabled).toBe(false);
         expect(badge('status').getAttribute('data-flb-value')).toBe('-');
@@ -298,5 +302,79 @@ describe('filter menus', () => {
 
         document.getElementById('elsewhere').dispatchEvent(new Event('change', { bubbles: true }));
         expect(frames).toHaveLength(1);
+    });
+});
+
+describe('date ranges', () => {
+    // 2026-11-28 is a Saturday.
+    test.each([
+        ['today', 1, '2026-11-28', '2026-11-28'],
+        ['yesterday', 1, '2026-11-27', '2026-11-27'],
+        ['tomorrow', 1, '2026-11-29', '2026-11-29'],
+        ['thisWeek', 1, '2026-11-23', '2026-11-29'],
+        ['thisWeek', 0, '2026-11-22', '2026-11-28'],
+        ['thisWeek', 6, '2026-11-28', '2026-12-04'],
+        ['lastWeek', 1, '2026-11-16', '2026-11-22'],
+        ['nextWeek', 1, '2026-11-30', '2026-12-06'],
+        ['last7', 1, '2026-11-22', '2026-11-28'],
+        ['next7', 1, '2026-11-28', '2026-12-04'],
+        ['thisMonth', 1, '2026-11-01', '2026-11-30'],
+        ['lastMonth', 1, '2026-10-01', '2026-10-31'],
+        ['nextMonth', 1, '2026-12-01', '2026-12-31'],
+    ])('%s with week starting on day %i', (choice, firstDay, from, to) => {
+        expect(board.flowBoardDateRange(choice, '2026-11-28', null, null, firstDay)).toEqual({ from, to });
+    });
+
+    test('Day before and Day after step from the shown dates, across a month and a year', () => {
+        expect(board.flowBoardDateRange('dayBefore', '2026-11-28', '20260301', '20260305', 1)).toEqual({ from: '2026-02-28', to: '2026-02-28' });
+        expect(board.flowBoardDateRange('dayAfter', '2026-11-28', '20261225', '20261231', 1)).toEqual({ from: '2027-01-01', to: '2027-01-01' });
+        expect(board.flowBoardDateRange('dayBefore', '2026-11-28', null, null, 1)).toBeNull();
+        expect(board.flowBoardDateRange('', '2026-11-28', null, null, 1)).toBeNull();
+    });
+
+    test('the menu shows the choice that gives the dates, or custom dates', () => {
+        expect(board.flowBoardMatchRange('2026-11-28', '20261128', '20261128', 1)).toBe('today');
+        expect(board.flowBoardMatchRange('2026-11-28', '20261130', '20261206', 1)).toBe('nextWeek');
+        expect(board.flowBoardMatchRange('2026-11-28', '20261101', '20261130', 1)).toBe('thisMonth');
+        expect(board.flowBoardMatchRange('2026-11-28', '20261102', '20261130', 1)).toBe('');
+    });
+
+    test.each([
+        [0, '2026-03-04'],
+        [1, '03/04/2026'],
+        [2, '04/03/2026'],
+    ])('dates are written in date format %i', (format, expected) => {
+        expect(board.flowBoardFormatDate('2026-03-04', format)).toBe(expected);
+    });
+});
+
+describe('flowBoardMarkChanges', () => {
+    function table(status, room) {
+        const element = document.createElement('table');
+        element.innerHTML = `<tbody>
+            <tr data-apptstatus="${status}"><td data-flb-eid="768" data-flb-date="20261130"></td>
+                <td><button class="flb-badge">${status}</button></td><td><button class="flb-badge">${room}</button></td></tr>
+            <tr data-apptstatus="-"><td data-flb-eid="769" data-flb-date="20261130"></td>
+                <td><button class="flb-badge">-</button></td><td><button class="flb-badge">–</button></td></tr>
+        </tbody>`;
+        return element;
+    }
+
+    function changed(element) {
+        return [...element.querySelectorAll('tr')].map((tr) => tr.classList.contains('flb-changed'));
+    }
+
+    test('the first load marks nothing; later loads mark rows whose status or room changed', () => {
+        const first = table('-', '–');
+        const shown = board.flowBoardMarkChanges(first, null);
+        expect(changed(first)).toEqual([false, false]);
+
+        const second = table('@', '–');
+        const next = board.flowBoardMarkChanges(second, shown);
+        expect(changed(second)).toEqual([true, false]);
+
+        const third = table('@', 'Room 1');
+        board.flowBoardMarkChanges(third, next);
+        expect(changed(third)).toEqual([true, false]);
     });
 });
